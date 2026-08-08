@@ -1,4 +1,4 @@
-const CACHE = 'personal-cabinet-v10-1-stable';
+const CACHE = 'personal-cabinet-v10-3-income-insights';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './config.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', event => {

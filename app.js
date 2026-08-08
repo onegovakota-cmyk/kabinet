@@ -569,26 +569,155 @@
   }
 
   function renderIncomes() {
-    const ym = currentMonthISO();
+    const ym = $('#incomeAnalysisMonth')?.value || currentMonthISO();
+    if ($('#incomeAnalysisMonth') && !$('#incomeAnalysisMonth').value) $('#incomeAnalysisMonth').value = ym;
+
     const month = state.incomes.filter(x=>isInMonth(x.received_on,ym));
     const total = month.reduce((s,x)=>s+num(x.amount),0);
+
     $('#incomeMonthTotal').textContent = money(total);
-    const rows = state.incomes.slice(0,100);
-    $('#incomeHistory').innerHTML = rows.length ? `<table><thead><tr><th>Дата</th><th>Источник</th><th>Получено</th><th>Комментарий</th><th>Сумма</th><th></th></tr></thead><tbody>${rows.map(x=>`<tr><td>${prettyDate(x.received_on)}</td><td>${esc(x.category)}</td><td>${x.income_method==='cash'?'💵 Наличными':x.income_method==='card'?'💳 На карту':'—'}</td><td>${esc(x.note||'—')}</td><td class="amount-pos">+${money(x.amount)}</td><td class="table-actions"><button class="delete-income" data-id="${x.id}">Удалить</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Доходов пока нет.</div>';
+    $('#incomeAnalysisTotal').textContent = money(total);
+
+    // Всегда показываем основные источники, даже если в месяце по ним было 0 ₽.
+    const preferredSources = ['Школа','Репетиторство','Игры и материалы','Другое'];
+    const sourceMap = new Map(preferredSources.map(name => [name, 0]));
+
+    month.forEach(x => {
+      const source = (x.category || 'Другое').trim() || 'Другое';
+      sourceMap.set(source, (sourceMap.get(source) || 0) + num(x.amount));
+    });
+
+    const sources = [...sourceMap.entries()]
+      .map(([name, amount]) => ({name, amount}))
+      .sort((a,b)=>b.amount-a.amount);
+
+    const nonZeroSources = sources.filter(x=>x.amount>0);
+    const top = nonZeroSources[0] || null;
+
+    $('#incomeSourceCount').textContent = nonZeroSources.length;
+    $('#incomeAveragePayment').textContent = money(month.length ? total / month.length : 0);
+
+    if (top) {
+      const share = total > 0 ? top.amount / total * 100 : 0;
+      $('#incomeTopSourceName').textContent = top.name;
+      $('#incomeTopSourceAmount').textContent = money(top.amount);
+      $('#incomeTopSourceShare').textContent = `${share.toFixed(1)}% всего дохода месяца`;
+    } else {
+      $('#incomeTopSourceName').textContent = '—';
+      $('#incomeTopSourceAmount').textContent = money(0);
+      $('#incomeTopSourceShare').textContent = 'Добавьте доходы, чтобы увидеть анализ.';
+    }
+
+    const maxAmount = top?.amount || 0;
+    const sourceIcons = {
+      'Школа':'🏫',
+      'Репетиторство':'👩‍🏫',
+      'Игры и материалы':'🎮',
+      'Другое':'✨'
+    };
+
+    $('#incomeSourceCards').innerHTML = sources.map((s,index)=>{
+      const share = total > 0 ? s.amount / total * 100 : 0;
+      const bar = maxAmount > 0 ? s.amount / maxAmount * 100 : 0;
+      return `<article class="income-source-card ${s.amount===0?'zero':''}">
+        <div class="income-source-head">
+          <div class="income-source-name">
+            <span class="income-source-icon">${sourceIcons[s.name] || '💰'}</span>
+            <div><strong>${esc(s.name)}</strong><small>${share.toFixed(1)}% общего дохода</small></div>
+          </div>
+          <strong class="income-source-amount">${money(s.amount)}</strong>
+        </div>
+        <div class="income-source-bar"><span style="width:${bar}%"></span></div>
+      </article>`;
+    }).join('');
+
+    const monthLabel = new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric'})
+      .format(new Date(`${ym}-01T12:00:00`));
+    $('#incomeHistoryPeriod').textContent = `За ${monthLabel}`;
+
+    const rows = month.slice().sort((a,b)=>{
+      const byDate = String(b.received_on).localeCompare(String(a.received_on));
+      return byDate || String(b.created_at||'').localeCompare(String(a.created_at||''));
+    });
+
+    $('#incomeHistory').innerHTML = rows.length
+      ? `<table><thead><tr><th>Дата</th><th>Источник</th><th>Получено</th><th>Комментарий</th><th>Сумма</th><th></th></tr></thead><tbody>${rows.map(x=>`<tr><td>${prettyDate(x.received_on)}</td><td>${esc(x.category)}</td><td>${x.income_method==='cash'?'💵 Наличными':x.income_method==='card'?'💳 На карту':'—'}</td><td>${esc(x.note||'—')}</td><td class="amount-pos">+${money(x.amount)}</td><td class="table-actions"><button class="delete-income" data-id="${x.id}">Удалить</button></td></tr>`).join('')}</tbody></table>`
+      : '<div class="empty">Доходов за выбранный месяц пока нет.</div>';
+
     $$('.delete-income').forEach(b=>b.onclick=()=>deleteRow('pf_incomes',b.dataset.id,'Доход удалён'));
     updateSplitPreview();
   }
 
   function renderExpenses() {
-    const ym = currentMonthISO();
+    const ym = $('#expenseAnalysisMonth')?.value || currentMonthISO();
+    if ($('#expenseAnalysisMonth') && !$('#expenseAnalysisMonth').value) $('#expenseAnalysisMonth').value = ym;
+
     const month = state.expenses.filter(x=>isInMonth(x.spent_on,ym));
     const total = month.reduce((s,x)=>s+num(x.amount),0);
     $('#expenseMonthTotal').textContent = money(total);
-    const rows = state.expenses.slice(0,100);
-    $('#expenseHistory').innerHTML = rows.length ? `<table><thead><tr><th>Дата</th><th>Категория</th><th>Комментарий</th><th>Сумма</th><th></th></tr></thead><tbody>${rows.map(x=>`<tr><td>${prettyDate(x.spent_on)}</td><td>${esc(x.category)}</td><td>${esc(x.note||'—')}</td><td class="amount-neg">−${money(x.amount)}</td><td class="table-actions"><button class="delete-expense" data-id="${x.id}">Удалить</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Расходов пока нет.</div>';
+    $('#expenseAnalysisTotal').textContent = money(total);
+
+    const categoryMap = new Map();
+    month.forEach(x => {
+      const category = (x.category || 'Другое').trim() || 'Другое';
+      categoryMap.set(category, (categoryMap.get(category) || 0) + num(x.amount));
+    });
+
+    const categories = [...categoryMap.entries()]
+      .map(([name, amount]) => ({name, amount}))
+      .sort((a,b)=>b.amount-a.amount);
+
+    const top = categories[0] || null;
+    $('#expenseCategoryCount').textContent = categories.length;
+    $('#expenseAverageCheck').textContent = money(month.length ? total / month.length : 0);
+
+    if (top) {
+      const share = total > 0 ? top.amount / total * 100 : 0;
+      $('#expenseTopCategoryName').textContent = top.name;
+      $('#expenseTopCategoryAmount').textContent = money(top.amount);
+      $('#expenseTopCategoryShare').textContent = `${share.toFixed(1)}% всех расходов месяца`;
+    } else {
+      $('#expenseTopCategoryName').textContent = '—';
+      $('#expenseTopCategoryAmount').textContent = money(0);
+      $('#expenseTopCategoryShare').textContent = 'Добавьте расходы, чтобы увидеть анализ.';
+    }
+
+    const maxAmount = top?.amount || 0;
+    $('#expenseCategoryBreakdown').innerHTML = categories.length
+      ? categories.map((c,index)=>{
+          const share = total > 0 ? c.amount / total * 100 : 0;
+          const bar = maxAmount > 0 ? c.amount / maxAmount * 100 : 0;
+          return `<div class="expense-category-row">
+            <div class="expense-category-rank">${index+1}</div>
+            <div class="expense-category-main">
+              <div class="expense-category-line">
+                <strong>${esc(c.name)}</strong>
+                <span>${money(c.amount)} · ${share.toFixed(1)}%</span>
+              </div>
+              <div class="expense-category-bar"><span style="width:${bar}%"></span></div>
+            </div>
+          </div>`;
+        }).join('')
+      : '<div class="empty">В этом месяце пока нет расходов.</div>';
+
+    const monthLabel = new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric'})
+      .format(new Date(`${ym}-01T12:00:00`));
+    $('#expenseHistoryPeriod').textContent = `За ${monthLabel}`;
+
+    const rows = month.slice().sort((a,b)=>{
+      const byDate = String(b.spent_on).localeCompare(String(a.spent_on));
+      return byDate || String(b.created_at||'').localeCompare(String(a.created_at||''));
+    });
+
+    $('#expenseHistory').innerHTML = rows.length
+      ? `<table><thead><tr><th>Дата</th><th>Категория</th><th>Комментарий</th><th>Сумма</th><th></th></tr></thead><tbody>${rows.map(x=>`<tr><td>${prettyDate(x.spent_on)}</td><td>${esc(x.category)}</td><td>${esc(x.note||'—')}</td><td class="amount-neg">−${money(x.amount)}</td><td class="table-actions"><button class="delete-expense" data-id="${x.id}">Удалить</button></td></tr>`).join('')}</tbody></table>`
+      : '<div class="empty">Расходов за выбранный месяц пока нет.</div>';
+
     $$('.delete-expense').forEach(b=>b.onclick=()=>deleteRow('pf_expenses',b.dataset.id,'Расход удалён'));
 
-    $('#fixedExpensesList').innerHTML = state.fixed.length ? state.fixed.map(x=>`<div class="fixed-row"><span>${esc(x.name)}</span><strong>${money(x.monthly_amount)}</strong><button class="text-btn delete-fixed" data-id="${x.id}">Удалить</button></div>`).join('') : '<div class="empty">Постоянных расходов пока нет.</div>';
+    $('#fixedExpensesList').innerHTML = state.fixed.length
+      ? state.fixed.map(x=>`<div class="fixed-row"><span>${esc(x.name)}</span><strong>${money(x.monthly_amount)}</strong><button class="text-btn delete-fixed" data-id="${x.id}">Удалить</button></div>`).join('')
+      : '<div class="empty">Постоянных расходов пока нет.</div>';
     $$('.delete-fixed').forEach(b=>b.onclick=()=>deleteRow('pf_fixed_expenses',b.dataset.id,'Категория удалена'));
   }
 
@@ -1443,6 +1572,7 @@
       } finally { $('#authSubmit').disabled = false; }
     });
 
+    $('#incomeAnalysisMonth').addEventListener('change', renderIncomes);
     $('#incomeForm').addEventListener('submit', async e => {
       e.preventDefault();
 
@@ -1498,11 +1628,21 @@
       await loadAll({silent:true});
     });
 
+    $('#expenseAnalysisMonth').addEventListener('change', renderExpenses);
     $('#expenseForm').addEventListener('submit', async e => {
       e.preventDefault();
       const payload = {user_id:user.id, amount:num($('#expenseAmount').value), category:$('#expenseCategory').value, spent_on:$('#expenseDate').value, note:$('#expenseNote').value.trim() || null};
       const {error} = await sb.from('pf_expenses').insert(payload);
-      if (error) toast('Не удалось добавить расход','error'); else { toast('Расход добавлен'); e.target.reset(); $('#expenseDate').value=todayISO(); }
+      if (error) {
+        console.error(error);
+        toast(error.message || 'Не удалось добавить расход','error');
+      } else {
+        toast('Расход добавлен');
+        const addedMonth = String(payload.spent_on || todayISO()).slice(0,7);
+        e.target.reset();
+        $('#expenseDate').value=todayISO();
+        $('#expenseAnalysisMonth').value=addedMonth;
+      }
       await loadAll({silent:true});
     });
 
@@ -1706,7 +1846,9 @@
     if (!user) { showApp(false); return; }
     showApp(true);
     $('#incomeDate').value = todayISO();
+    $('#incomeAnalysisMonth').value = currentMonthISO();
     $('#expenseDate').value = todayISO();
+    $('#expenseAnalysisMonth').value = currentMonthISO();
     $('#taskDate').value = todayISO();
     $('#habitMonth').value = currentMonthISO();
     $('#readingMonth').value = currentMonthISO();

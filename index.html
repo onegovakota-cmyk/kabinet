@@ -8,7 +8,7 @@
   <title>Мой личный кабинет</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=10.1" />
+  <link rel="stylesheet" href="style.css?v=10.3" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -218,7 +218,47 @@
             <div id="splitPreview" class="allocation-list compact"></div>
           </article>
         </div>
-        <article class="panel mt-lg"><div class="panel-head"><h3>История доходов</h3><span id="incomeMonthTotal" class="badge good">0 ₽</span></div><div id="incomeHistory" class="table-wrap"></div></article>
+        <article class="panel mt-lg income-insights-panel">
+          <div class="panel-head wrap">
+            <div>
+              <h3>Откуда пришли деньги</h3>
+              <p class="muted">Доход по каждому источнику за выбранный месяц.</p>
+            </div>
+            <label class="month-picker-inline">
+              <span>Месяц</span>
+              <input id="incomeAnalysisMonth" type="month" />
+            </label>
+          </div>
+
+          <div class="income-top-source">
+            <div class="income-top-icon">🏆</div>
+            <div class="income-top-copy">
+              <span>Больше всего принесло</span>
+              <strong id="incomeTopSourceName">—</strong>
+              <small id="incomeTopSourceShare">Добавьте доходы, чтобы увидеть анализ.</small>
+            </div>
+            <div class="income-top-amount" id="incomeTopSourceAmount">0 ₽</div>
+          </div>
+
+          <div class="income-analysis-summary">
+            <div><span>Всего за месяц</span><strong id="incomeAnalysisTotal">0 ₽</strong></div>
+            <div><span>Источников</span><strong id="incomeSourceCount">0</strong></div>
+            <div><span>Среднее поступление</span><strong id="incomeAveragePayment">0 ₽</strong></div>
+          </div>
+
+          <div id="incomeSourceCards" class="income-source-cards"></div>
+        </article>
+
+        <article class="panel mt-lg">
+          <div class="panel-head">
+            <div>
+              <h3>История доходов</h3>
+              <p class="muted" id="incomeHistoryPeriod">За выбранный месяц</p>
+            </div>
+            <span id="incomeMonthTotal" class="badge good">0 ₽</span>
+          </div>
+          <div id="incomeHistory" class="table-wrap"></div>
+        </article>
       
         </div>
         <div id="finance-view-expenses" class="finance-view">
@@ -244,7 +284,47 @@
             </form>
           </article>
         </div>
-        <article class="panel mt-lg"><div class="panel-head"><h3>История расходов</h3><span id="expenseMonthTotal" class="badge warn">0 ₽</span></div><div id="expenseHistory" class="table-wrap"></div></article>
+        <article class="panel mt-lg expense-insights-panel">
+          <div class="panel-head wrap">
+            <div>
+              <h3>Куда ушли деньги</h3>
+              <p class="muted">Анализ фактических расходов по категориям.</p>
+            </div>
+            <label class="month-picker-inline">
+              <span>Месяц</span>
+              <input id="expenseAnalysisMonth" type="month" />
+            </label>
+          </div>
+
+          <div id="expenseTopCategory" class="expense-top-category">
+            <div class="expense-top-icon">🏆</div>
+            <div class="expense-top-copy">
+              <span>Больше всего потрачено</span>
+              <strong id="expenseTopCategoryName">—</strong>
+              <small id="expenseTopCategoryShare">Добавьте расходы, чтобы увидеть анализ.</small>
+            </div>
+            <div class="expense-top-amount" id="expenseTopCategoryAmount">0 ₽</div>
+          </div>
+
+          <div class="expense-analysis-summary">
+            <div><span>Всего за месяц</span><strong id="expenseAnalysisTotal">0 ₽</strong></div>
+            <div><span>Категорий</span><strong id="expenseCategoryCount">0</strong></div>
+            <div><span>Средний расход</span><strong id="expenseAverageCheck">0 ₽</strong></div>
+          </div>
+
+          <div id="expenseCategoryBreakdown" class="expense-category-breakdown"></div>
+        </article>
+
+        <article class="panel mt-lg">
+          <div class="panel-head">
+            <div>
+              <h3>История расходов</h3>
+              <p class="muted" id="expenseHistoryPeriod">За выбранный месяц</p>
+            </div>
+            <span id="expenseMonthTotal" class="badge warn">0 ₽</span>
+          </div>
+          <div id="expenseHistory" class="table-wrap"></div>
+        </article>
       
         </div>
         <div id="finance-view-debts" class="finance-view">
@@ -712,7 +792,7 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=10.1"></script>
-  <script src="app.js?v=10.1"></script>
+  <script src="config.js?v=10.3"></script>
+  <script src="app.js?v=10.3"></script>
 </body>
 </html>
