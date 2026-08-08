@@ -19,6 +19,8 @@
   let user = null;
   let authMode = 'login';
   let activeTab = 'dashboard';
+  let bookShelfFilter = 'all';
+  let mediaShelfFilter = 'all';
   let state = {
     settings: { monthly_income_target: 110000, yearly_book_goal: 24, daily_reading_goal_minutes: 20, sleep_goal_hours: 8, theme: 'violet' },
     debts: [], fixed: [], incomes: [], expenses: [], payments: [], habits: [], habitLogs: [], tasks: [],
@@ -566,8 +568,23 @@
       </div>`;
     }).join('') : '<div class="empty">Сейчас нет активной книги. Добавьте книгу со статусом «Читаю».</div>';
 
+    const bookCounts = {
+      all: state.books.length,
+      reading: state.books.filter(b=>b.status==='reading').length,
+      wishlist: state.books.filter(b=>b.status==='wishlist').length,
+      finished: state.books.filter(b=>b.status==='finished').length,
+      paused: state.books.filter(b=>b.status==='paused').length,
+      owned: state.books.filter(b=>b.owned).length,
+      favorite: state.books.filter(b=>b.favorite).length
+    };
+    $$('[data-book-filter]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.bookFilter === bookShelfFilter);
+      const count = btn.querySelector('[data-count]');
+      if (count) count.textContent = bookCounts[btn.dataset.bookFilter] ?? 0;
+    });
+
     const q = ($('#bookSearch')?.value || '').trim().toLowerCase();
-    const status = $('#bookStatusFilter')?.value || 'all';
+    const status = bookShelfFilter;
     const filtered = state.books.filter(b => {
       const statusMatch = status==='all' || (status==='owned' ? b.owned : status==='favorite' ? b.favorite : b.status===status);
       return statusMatch && (!q || `${b.title} ${b.author||''}`.toLowerCase().includes(q));
@@ -654,6 +671,7 @@
     $('#bookOwned').checked=false;
     $('#bookNotes').value='';
     $('#deleteBookBtn').classList.add('hidden');
+    document.body.classList.add('dialog-open');
     $('#bookDialog').showModal();
   }
 
@@ -674,6 +692,7 @@
     $('#bookOwned').checked=!!b.owned;
     $('#bookNotes').value=b.notes||'';
     $('#deleteBookBtn').classList.remove('hidden');
+    document.body.classList.add('dialog-open');
     $('#bookDialog').showModal();
   }
 
@@ -771,10 +790,27 @@
     $('#mediaWatchedYear').textContent=watchedYear.length;
     $('#mediaAverageRating').textContent=rated.length?avg.toFixed(1).replace('.',','):'—';
 
+    const mediaCounts = {
+      all: state.media.length,
+      wishlist: state.media.filter(m=>m.status==='wishlist').length,
+      watching: state.media.filter(m=>m.status==='watching').length,
+      watched: state.media.filter(m=>m.status==='watched').length,
+      dropped: state.media.filter(m=>m.status==='dropped').length,
+      favorite: state.media.filter(m=>m.favorite).length
+    };
+    $$('[data-media-filter]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mediaFilter === mediaShelfFilter);
+      const count = btn.querySelector('[data-count]');
+      if (count) count.textContent = mediaCounts[btn.dataset.mediaFilter] ?? 0;
+    });
+
     const q=($('#mediaSearch')?.value||'').trim().toLowerCase();
     const type=$('#mediaTypeFilter')?.value||'all';
-    const status=$('#mediaStatusFilter')?.value||'all';
-    const filtered=state.media.filter(m=>(type==='all'||m.media_type===type)&&(status==='all'||m.status===status)&&(!q||m.title.toLowerCase().includes(q)));
+    const status=mediaShelfFilter;
+    const filtered=state.media.filter(m=>{
+      const statusMatch = status==='all' || (status==='favorite' ? m.favorite : m.status===status);
+      return (type==='all'||m.media_type===type) && statusMatch && (!q||m.title.toLowerCase().includes(q));
+    });
     $('#mediaLibrary').innerHTML=filtered.length?filtered.map(m=>{
       const progress=mediaProgressText(m);
       return `<article class="library-card">
@@ -799,7 +835,7 @@
     $('#mediaYear').value=''; $('#mediaCover').value=''; $('#mediaRating').value='0';
     $('#mediaSeasonCurrent').value='0'; $('#mediaSeasonsTotal').value='0'; $('#mediaEpisodeCurrent').value='0'; $('#mediaEpisodesTotal').value='0';
     $('#mediaWatchedOn').value=''; $('#mediaFavorite').checked=false; $('#mediaNotes').value=''; $('#mediaImpression').value='';
-    $('#deleteMediaBtn').classList.add('hidden'); toggleMediaSeriesFields(); $('#mediaDialog').showModal();
+    $('#deleteMediaBtn').classList.add('hidden'); toggleMediaSeriesFields(); document.body.classList.add('dialog-open'); $('#mediaDialog').showModal();
   }
 
   function openMediaEdit(id) {
@@ -809,7 +845,7 @@
     $('#mediaYear').value=m.release_year||''; $('#mediaCover').value=m.cover_url||''; $('#mediaRating').value=num(m.rating);
     $('#mediaSeasonCurrent').value=num(m.season_current); $('#mediaSeasonsTotal').value=num(m.seasons_total); $('#mediaEpisodeCurrent').value=num(m.episode_current); $('#mediaEpisodesTotal').value=num(m.episodes_total);
     $('#mediaWatchedOn').value=m.watched_on||''; $('#mediaFavorite').checked=!!m.favorite; $('#mediaNotes').value=m.notes||''; $('#mediaImpression').value=m.impression||'';
-    $('#deleteMediaBtn').classList.remove('hidden'); toggleMediaSeriesFields(); $('#mediaDialog').showModal();
+    $('#deleteMediaBtn').classList.remove('hidden'); toggleMediaSeriesFields(); document.body.classList.add('dialog-open'); $('#mediaDialog').showModal();
   }
 
   function toggleMediaSeriesFields() {
@@ -984,7 +1020,11 @@
     // Книги
     $('#addBookBtn').onclick = openBookNew;
     $('#bookSearch').addEventListener('input', renderBooks);
-    $('#bookStatusFilter').addEventListener('change', renderBooks);
+    $$('[data-book-filter]').forEach(btn => btn.addEventListener('click', () => {
+      bookShelfFilter = btn.dataset.bookFilter || 'all';
+      renderBooks();
+      $('#booksLibrary')?.scrollIntoView({behavior:'smooth', block:'start'});
+    }));
     $('#readingMonth').addEventListener('change', renderReadingCalendar);
     $('#readingTimerBook').addEventListener('change', e => { if (!readingTimer.running) { readingTimer.bookId=e.target.value||null; saveReadingTimer(); } });
     $('#readingTimerToggle').onclick = () => {
@@ -1022,8 +1062,12 @@
     $('#addMediaBtn').onclick = openMediaNew;
     $('#mediaType').addEventListener('change', toggleMediaSeriesFields);
     $('#mediaSearch').addEventListener('input', renderMedia);
+    $$('[data-media-filter]').forEach(btn => btn.addEventListener('click', () => {
+      mediaShelfFilter = btn.dataset.mediaFilter || 'all';
+      renderMedia();
+      $('#mediaLibrary')?.scrollIntoView({behavior:'smooth', block:'start'});
+    }));
     $('#mediaTypeFilter').addEventListener('change', renderMedia);
-    $('#mediaStatusFilter').addEventListener('change', renderMedia);
     $('#randomMediaBtn').onclick = () => pickRandomMedia();
 
     // Тема кабинета — предпросмотр сразу при выборе
@@ -1040,6 +1084,15 @@
     $('#sleepBedTime').addEventListener('input', updateSleepPreview);
     $('#sleepWakeTime').addEventListener('input', updateSleepPreview);
     $$('.dialog-close').forEach(b => b.onclick = () => { const d = document.getElementById(b.dataset.dialog); if (d?.open) d.close(); });
+    ['bookDialog','mediaDialog'].forEach(id => {
+      const dialog = document.getElementById(id);
+      dialog?.addEventListener('click', e => {
+        if (e.target === dialog) dialog.close();
+      });
+      dialog?.addEventListener('close', () => {
+        document.body.classList.remove('dialog-open');
+      });
+    });
 
     $('#authModeToggle').onclick = () => {
       authMode = authMode === 'login' ? 'register' : 'login';

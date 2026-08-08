@@ -1,4 +1,4 @@
-const CACHE = 'personal-cabinet-v5-theme-media';
+const CACHE = 'personal-cabinet-v6-library-tabs';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './config.js', './manifest.webmanifest', './icon.svg'];
 
 self.addEventListener('install', event => {

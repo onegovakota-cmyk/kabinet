@@ -420,3 +420,78 @@ button.calendar-day { width: 100%; text-align: left; }
   .calendar-day .calendar-value { font-size: 9px; }
   .sleep-hours { font-size: 12px; }
 }
+
+
+/* v6 — полноэкранные карточки книг и полки библиотеки/кино */
+body.dialog-open { overflow: hidden; }
+
+.book-modal .book-notes-field { margin-top: 16px; }
+.book-modal .book-notes-field textarea { min-height: 210px; resize: vertical; }
+
+.shelf-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 2px 1px 14px;
+  margin-top: -2px;
+  margin-bottom: 10px;
+}
+.shelf-tabs::-webkit-scrollbar { display: none; }
+
+.shelf-tab {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: .16s ease;
+}
+.shelf-tab span {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 10px;
+}
+.shelf-tab:hover { border-color: var(--primary); color: var(--text); }
+.shelf-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 7px 20px rgba(var(--accent-rgb), .18);
+}
+.shelf-tab.active span {
+  background: rgba(255,255,255,.20);
+  color: #fff;
+}
+.library-search-row { margin-left: auto; }
+.library-search-row input { min-width: min(320px, 70vw); }
+
+@media (max-width: 480px) {
+  .book-modal .book-notes-field textarea { min-height: 180px; }
+  .shelf-tabs {
+    margin-left: -14px;
+    margin-right: -14px;
+    padding-left: 14px;
+    padding-right: 14px;
+    scroll-padding-left: 14px;
+  }
+  .shelf-tab { padding: 9px 11px; }
+  .library-search-row input { min-width: 0; width: 100%; }
+}

@@ -8,7 +8,7 @@
   <title>Мой личный кабинет</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=4" />
+  <link rel="stylesheet" href="style.css?v=6" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -243,19 +243,19 @@
 
         <article class="panel mt-lg">
           <div class="panel-head wrap">
-            <div><h3>Книги</h3><p class="muted">Личная библиотека и список желаний.</p></div>
-            <div class="filter-row">
+            <div><h3>Книги</h3><p class="muted">Переключайтесь между полками одним нажатием.</p></div>
+            <div class="filter-row library-search-row">
               <input id="bookSearch" type="search" placeholder="Поиск книги или автора" />
-              <select id="bookStatusFilter">
-                <option value="all">Все</option>
-                <option value="reading">Читаю</option>
-                <option value="wishlist">Хочу прочитать</option>
-                <option value="finished">Прочитано</option>
-                <option value="paused">Отложено</option>
-                <option value="owned">Купленные</option>
-                <option value="favorite">Любимые</option>
-              </select>
             </div>
+          </div>
+          <div id="bookShelfTabs" class="shelf-tabs" aria-label="Полки книг">
+            <button class="shelf-tab active" type="button" data-book-filter="all">Все <span data-count="all">0</span></button>
+            <button class="shelf-tab" type="button" data-book-filter="reading">Читаю <span data-count="reading">0</span></button>
+            <button class="shelf-tab" type="button" data-book-filter="wishlist">Хочу прочитать <span data-count="wishlist">0</span></button>
+            <button class="shelf-tab" type="button" data-book-filter="finished">Прочитано <span data-count="finished">0</span></button>
+            <button class="shelf-tab" type="button" data-book-filter="paused">Отложено <span data-count="paused">0</span></button>
+            <button class="shelf-tab" type="button" data-book-filter="owned">Купленные <span data-count="owned">0</span></button>
+            <button class="shelf-tab" type="button" data-book-filter="favorite">Любимые <span data-count="favorite">0</span></button>
           </div>
           <div id="booksLibrary" class="library-grid"></div>
         </article>
@@ -297,12 +297,19 @@
 
         <article class="panel mt-lg">
           <div class="panel-head wrap">
-            <div><h3>Моя коллекция</h3><p class="muted">Все фильмы и сериалы.</p></div>
-            <div class="filter-row">
+            <div><h3>Моя коллекция</h3><p class="muted">Отдельные полки для желаний, просмотра и завершённого.</p></div>
+            <div class="filter-row library-search-row">
               <input id="mediaSearch" type="search" placeholder="Поиск по названию" />
               <select id="mediaTypeFilter"><option value="all">Фильмы и сериалы</option><option value="movie">Только фильмы</option><option value="series">Только сериалы</option></select>
-              <select id="mediaStatusFilter"><option value="all">Все статусы</option><option value="wishlist">Хочу посмотреть</option><option value="watching">Смотрю</option><option value="watched">Просмотрено</option><option value="dropped">Брошено</option></select>
             </div>
+          </div>
+          <div id="mediaShelfTabs" class="shelf-tabs" aria-label="Полки фильмов и сериалов">
+            <button class="shelf-tab active" type="button" data-media-filter="all">Все <span data-count="all">0</span></button>
+            <button class="shelf-tab" type="button" data-media-filter="wishlist">Хочу посмотреть <span data-count="wishlist">0</span></button>
+            <button class="shelf-tab" type="button" data-media-filter="watching">Смотрю <span data-count="watching">0</span></button>
+            <button class="shelf-tab" type="button" data-media-filter="watched">Просмотрено <span data-count="watched">0</span></button>
+            <button class="shelf-tab" type="button" data-media-filter="dropped">Брошено <span data-count="dropped">0</span></button>
+            <button class="shelf-tab" type="button" data-media-filter="favorite">Избранное <span data-count="favorite">0</span></button>
           </div>
           <div id="mediaLibrary" class="library-grid"></div>
         </article>
@@ -401,27 +408,44 @@
   </div>
 
 
-  <dialog id="bookDialog" class="modal">
-    <form id="bookForm" method="dialog" class="modal-card modal-wide">
-      <div class="panel-head"><h3 id="bookDialogTitle">Добавить книгу</h3><button class="icon-btn" value="cancel">✕</button></div>
-      <input id="bookId" type="hidden" />
-      <div class="form-grid">
-        <label class="field"><span>Название</span><input id="bookTitle" maxlength="180" required /></label>
-        <label class="field"><span>Автор</span><input id="bookAuthor" maxlength="140" /></label>
-        <label class="field"><span>Статус</span><select id="bookStatus"><option value="reading">Читаю</option><option value="wishlist">Хочу прочитать</option><option value="finished">Прочитано</option><option value="paused">Отложено</option></select></label>
-        <label class="field"><span>Обложка — ссылка на изображение</span><input id="bookCover" type="url" placeholder="https://..." /></label>
-        <label class="field"><span>Всего страниц</span><input id="bookTotalPages" type="number" min="0" step="1" /></label>
-        <label class="field"><span>Текущая страница</span><input id="bookCurrentPage" type="number" min="0" step="1" /></label>
-        <label class="field"><span>Оценка</span><select id="bookRating"><option value="0">Без оценки</option><option value="1">★☆☆☆☆</option><option value="2">★★☆☆☆</option><option value="3">★★★☆☆</option><option value="4">★★★★☆</option><option value="5">★★★★★</option></select></label>
-        <label class="field"><span>Начала читать</span><input id="bookStartedOn" type="date" /></label>
-        <label class="field"><span>Закончила</span><input id="bookFinishedOn" type="date" /></label>
-        <label class="check-field"><input id="bookFavorite" type="checkbox" /><span>❤️ Любимая</span></label>
-        <label class="check-field"><input id="bookOwned" type="checkbox" /><span>📚 Книга куплена</span></label>
+  <dialog id="bookDialog" class="modal media-modal book-modal">
+    <form id="bookForm" method="dialog" class="modal-card media-modal-card">
+      <div class="panel-head media-modal-header">
+        <div>
+          <h3 id="bookDialogTitle">Добавить книгу</h3>
+          <p class="muted">Карточка книги открыта отдельным экраном. Можно закрыть её крестиком или кнопкой «Отмена» без сохранения.</p>
+        </div>
+        <button class="icon-btn dialog-close" data-dialog="bookDialog" type="button" aria-label="Закрыть">✕</button>
       </div>
-      <label class="field"><span>Отзыв / заметки</span><textarea id="bookNotes" rows="4" maxlength="3000" placeholder="Мысли о книге, цитаты, впечатления..."></textarea></label>
-      <div class="row gap-sm justify-between">
+
+      <div class="media-modal-body">
+        <input id="bookId" type="hidden" />
+        <div class="form-grid media-form-grid">
+          <label class="field"><span>Название</span><input id="bookTitle" maxlength="180" required /></label>
+          <label class="field"><span>Автор</span><input id="bookAuthor" maxlength="140" /></label>
+          <label class="field"><span>Статус</span><select id="bookStatus"><option value="reading">Читаю</option><option value="wishlist">Хочу прочитать</option><option value="finished">Прочитано</option><option value="paused">Отложено</option></select></label>
+          <label class="field"><span>Обложка — ссылка на изображение</span><input id="bookCover" type="url" placeholder="https://..." /></label>
+          <label class="field"><span>Всего страниц</span><input id="bookTotalPages" type="number" min="0" step="1" /></label>
+          <label class="field"><span>Текущая страница</span><input id="bookCurrentPage" type="number" min="0" step="1" /></label>
+          <label class="field"><span>Оценка</span><select id="bookRating"><option value="0">Без оценки</option><option value="1">★☆☆☆☆</option><option value="2">★★☆☆☆</option><option value="3">★★★☆☆</option><option value="4">★★★★☆</option><option value="5">★★★★★</option></select></label>
+          <label class="field"><span>Начала читать</span><input id="bookStartedOn" type="date" /></label>
+          <label class="field"><span>Закончила</span><input id="bookFinishedOn" type="date" /></label>
+          <label class="check-field"><input id="bookFavorite" type="checkbox" /><span>❤️ Любимая</span></label>
+          <label class="check-field"><input id="bookOwned" type="checkbox" /><span>📚 Книга куплена</span></label>
+        </div>
+
+        <label class="field book-notes-field">
+          <span>Отзыв / заметки</span>
+          <textarea id="bookNotes" rows="7" maxlength="3000" placeholder="Мысли о книге, цитаты, впечатления..."></textarea>
+        </label>
+      </div>
+
+      <div class="media-modal-footer">
         <button id="deleteBookBtn" class="btn danger hidden" type="button">Удалить</button>
-        <div class="row gap-sm"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" type="submit" value="default">Сохранить</button></div>
+        <div class="row gap-sm media-footer-actions">
+          <button class="btn ghost dialog-close" data-dialog="bookDialog" type="button">Отмена</button>
+          <button class="btn primary" type="submit" value="default">Сохранить</button>
+        </div>
       </div>
     </form>
   </dialog>
@@ -540,7 +564,7 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=4"></script>
-  <script src="app.js?v=4"></script>
+  <script src="config.js?v=6"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
