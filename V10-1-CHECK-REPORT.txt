@@ -1,0 +1,8 @@
+V10.1 STABLE — FINAL CHECK
+==========================
+✓ JavaScript syntax: OK
+✓ HTML duplicate IDs: 0 (360 IDs checked)
+✓ Direct JS→HTML references: 316 checked, 0 missing
+✓ Income handler: fallback + detailed Supabase errors
+✓ Repair SQL: income_method + income RLS + previous schema additions + Life OS tables
+✓ Service worker cache bumped to v10.1

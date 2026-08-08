@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#6f5cff" />
-  <meta name="description" content="Личный кабинет: финансы, книги, кино, настроение, сон, привычки и задачи" />
+  <meta name="description" content="Личный кабинет: финансы, цели, проекты, привычки, задачи, книги, кино, настроение, сон, развитие и итоги" />
   <title>Мой личный кабинет</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=9" />
+  <link rel="stylesheet" href="style.css?v=10.1" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -44,14 +44,18 @@
         <div><strong>Мой кабинет</strong><span>всё важное в одном месте</span></div>
       </div>
       <nav id="mainNav" class="nav-list">
-        <button class="nav-item active" data-tab="dashboard">🏠 <span>Главная</span></button>
+        <button class="nav-item active" data-tab="dashboard">🏠 <span>Сегодня</span></button>
         <button class="nav-item" data-tab="finance">💰 <span>Финансы</span></button>
         <button class="nav-item" data-tab="habits">✅ <span>Привычки</span></button>
         <button class="nav-item" data-tab="tasks">📋 <span>Задачи</span></button>
+        <button class="nav-item" data-tab="plan">🎯 <span>Планирование</span></button>
         <button class="nav-item" data-tab="books">📚 <span>Книги</span></button>
         <button class="nav-item" data-tab="media">🎬 <span>Кино</span></button>
         <button class="nav-item" data-tab="mood">😊 <span>Настроение</span></button>
         <button class="nav-item" data-tab="sleep">😴 <span>Сон</span></button>
+        <button class="nav-item" data-tab="state">🌿 <span>Состояние</span></button>
+        <button class="nav-item" data-tab="growth">🎓 <span>Развитие</span></button>
+        <button class="nav-item" data-tab="results">🏆 <span>Итоги</span></button>
         <button class="nav-item" data-tab="settings">⚙️ <span>Настройки</span></button>
       </nav>
       <div class="sidebar-bottom">
@@ -63,8 +67,8 @@
     <main class="main">
       <header class="topbar">
         <div>
-          <h2 id="pageTitle">Главная</h2>
-          <p id="pageSubtitle" class="muted">Ваш финансовый обзор на сегодня</p>
+          <h2 id="pageTitle">Сегодня</h2>
+          <p id="pageSubtitle" class="muted">Главное на сегодня без лишнего шума</p>
         </div>
         <div class="topbar-actions">
           <span id="syncState" class="sync-pill">● Синхронизировано</span>
@@ -73,6 +77,26 @@
       </header>
 
       <section id="tab-dashboard" class="tab-panel active">
+        <article class="today-hero panel">
+          <div class="today-hero-main">
+            <div><span class="eyebrow">МОЙ ДЕНЬ</span><h3 id="todayHeroDate">Сегодня</h3><p id="todayFocusText" class="today-focus">Главный фокус месяца пока не задан.</p></div>
+            <div class="today-score-grid">
+              <div><span>Свободно</span><strong id="todayFreeMoney">0 ₽</strong></div>
+              <div><span>Сон</span><strong id="todaySleepMini">—</strong></div>
+              <div><span>Настроение</span><strong id="todayMoodMini">—</strong></div>
+              <div><span>Энергия</span><strong id="todayEnergyMini">—</strong></div>
+            </div>
+          </div>
+          <div class="quick-actions">
+            <button class="quick-action" type="button" data-quick="income">💰<span>Доход</span></button>
+            <button class="quick-action" type="button" data-quick="expense">🧾<span>Расход</span></button>
+            <button class="quick-action" type="button" data-quick="task">📋<span>Задачу</span></button>
+            <button class="quick-action" type="button" data-quick="idea">💡<span>Идею</span></button>
+            <button class="quick-action" type="button" data-quick="mood">😊<span>Настроение</span></button>
+            <button class="quick-action" type="button" data-quick="sleep">😴<span>Сон</span></button>
+            <button class="quick-action" type="button" data-quick="energy">🌿<span>Энергию</span></button>
+          </div>
+        </article>
         <div class="summary-grid">
           <article class="summary-card income"><span>Доходы за месяц</span><strong id="sumIncome">0 ₽</strong><small id="sumIncomeHint">цель 110 000 ₽</small></article>
           <article class="summary-card expense"><span>Расходы за месяц</span><strong id="sumExpenses">0 ₽</strong><small>без платежей по долгам</small></article>
@@ -254,6 +278,7 @@
         <form id="taskForm" class="task-add panel">
           <input id="taskTitle" type="text" maxlength="160" placeholder="Новая задача..." required />
           <select id="taskCategory"><option value="work">Работа</option><option value="tutoring">Репетиторство</option><option value="home">Домашние дела</option></select>
+          <select id="taskProject"><option value="">Без проекта</option></select>
           <button class="btn primary" type="submit">Добавить</button>
         </form>
         <div class="task-columns">
@@ -287,6 +312,7 @@
             <label class="field"><span>Книга</span><select id="readingTimerBook"></select></label>
             <div id="readingTimerDisplay" class="timer-display">00:00:00</div>
             <div id="readingTimerStatus" class="timer-status">Выберите книгу и нажмите «Начать».</div>
+            <p id="readingTodayGoal" class="hint">Сегодня: 0 мин.</p>
             <div class="row gap-sm timer-actions">
               <button id="readingTimerToggle" class="btn primary" type="button">▶ Начать</button>
               <button id="readingTimerFinish" class="btn secondary" type="button">Завершить и записать</button>
@@ -409,6 +435,65 @@
         </article>
       </section>
 
+      <section id="tab-plan" class="tab-panel">
+        <div class="life-summary-grid">
+          <article class="summary-card"><span>Активные цели</span><strong id="planGoalsCount">0</strong><small>в работе</small></article>
+          <article class="summary-card"><span>Активные проекты</span><strong id="planProjectsCount">0</strong><small>сейчас</small></article>
+          <article class="summary-card"><span>Inbox</span><strong id="planInboxCount">0</strong><small>нужно разобрать</small></article>
+          <article class="summary-card"><span>Фокус месяца</span><strong id="planMonthFocusMini">—</strong><small>главное направление</small></article>
+        </div>
+        <div class="section-tabs plan-tabs">
+          <button class="section-tab active" type="button" data-plan-tab="goals">🎯 Цели</button>
+          <button class="section-tab" type="button" data-plan-tab="projects">🚀 Проекты</button>
+          <button class="section-tab" type="button" data-plan-tab="month">📅 Мой месяц</button>
+          <button class="section-tab" type="button" data-plan-tab="week">📝 Обзор недели</button>
+          <button class="section-tab" type="button" data-plan-tab="inbox">💡 Inbox</button>
+        </div>
+        <div id="plan-view-goals" class="section-view active">
+          <div class="section-actions"><div><h3>Цели</h3><p class="muted">Долги и книжная цель обновляются автоматически. Личные цели добавляйте вручную.</p></div><button id="addGoalBtn" class="btn primary" type="button">+ Добавить цель</button></div>
+          <div id="automaticGoals" class="cards-grid"></div><h3 class="subsection-title">Мои цели</h3><div id="customGoals" class="cards-grid"></div>
+        </div>
+        <div id="plan-view-projects" class="section-view">
+          <div class="section-actions"><div><h3>Проекты</h3><p class="muted">Большие дела с дедлайнами, прогрессом и этапами.</p></div><button id="addProjectBtn" class="btn primary" type="button">+ Новый проект</button></div><div id="projectsList" class="cards-grid"></div>
+        </div>
+        <div id="plan-view-month" class="section-view">
+          <div class="section-actions"><div><h3>Мой месяц</h3><p class="muted">Фокус, три главных приоритета и важные даты.</p></div><input id="monthPlanMonth" type="month" /></div>
+          <div class="two-col align-start">
+            <article class="panel"><h3>Фокус месяца</h3><form id="monthPlanForm" class="stack gap-md">
+              <label class="field"><span>Главная тема / фокус</span><input id="monthFocus" maxlength="180" /></label>
+              <label class="field"><span>Приоритет №1</span><input id="monthPriority1" maxlength="180" /></label><label class="field"><span>Приоритет №2</span><input id="monthPriority2" maxlength="180" /></label><label class="field"><span>Приоритет №3</span><input id="monthPriority3" maxlength="180" /></label>
+              <label class="field"><span>Заметки</span><textarea id="monthNotes" rows="4" maxlength="2500"></textarea></label><button class="btn primary" type="submit">Сохранить план месяца</button>
+            </form></article>
+            <article class="panel"><h3>Добавить важную дату</h3><form id="monthEventForm" class="stack gap-md">
+              <label class="field"><span>Что запланировано</span><input id="monthEventTitle" required maxlength="180" /></label><div class="form-grid"><label class="field"><span>Дата</span><input id="monthEventDate" type="date" required /></label><label class="field"><span>Тип</span><select id="monthEventType"><option value="event">📌 Событие</option><option value="payment">💳 Платёж</option><option value="purchase">🛍️ Покупка</option><option value="birthday">🎂 День рождения</option><option value="deadline">⏰ Дедлайн</option><option value="other">Другое</option></select></label></div>
+              <label class="field"><span>Сумма, если есть</span><input id="monthEventAmount" type="number" min="0" step="0.01" /></label><button class="btn secondary" type="submit">+ Добавить дату</button>
+            </form></article>
+          </div><article class="panel"><div class="panel-head"><div><h3>Календарь важных дел</h3><p class="muted">События, дедлайны целей, проектов и задачи месяца.</p></div></div><div id="monthTimeline" class="timeline-list"></div></article>
+        </div>
+        <div id="plan-view-week" class="section-view">
+          <div class="section-actions"><div><h3>Еженедельный обзор</h3><p class="muted">Короткая рефлексия + статистика недели.</p></div><input id="weeklyReviewDate" type="date" /></div>
+          <div id="weeklyAutoStats" class="life-summary-grid"></div><article class="panel"><form id="weeklyReviewForm" class="form-grid">
+            <label class="field full-span"><span>Что получилось?</span><textarea id="weekWins" rows="4"></textarea></label><label class="field full-span"><span>Что было сложно?</span><textarea id="weekChallenges" rows="4"></textarea></label><label class="field full-span"><span>Что забрало силы?</span><textarea id="weekDrained" rows="3"></textarea></label><label class="field full-span"><span>Главный фокус следующей недели</span><input id="weekNextFocus" maxlength="250" /></label>
+            <label class="field"><span>Оценка недели</span><select id="weekScore"><option value="10">10 — отличная</option><option value="9">9</option><option value="8">8</option><option value="7">7</option><option value="6">6</option><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1 — тяжёлая</option></select></label><div class="field form-button-field"><span>&nbsp;</span><button class="btn primary" type="submit">Сохранить обзор</button></div>
+          </form></article><article class="panel mt-lg"><h3>Предыдущие недели</h3><div id="weeklyReviewHistory" class="journal-list"></div></article>
+        </div>
+        <div id="plan-view-inbox" class="section-view"><div class="section-actions"><div><h3>Inbox / Идеи</h3><p class="muted">Быстро выгружайте мысли из головы.</p></div><button id="addInboxBtn" class="btn primary" type="button">+ Записать мысль</button></div><div class="inbox-tip">Запись можно отправить в задачи, проекты, книги или кино.</div><div id="inboxList" class="stack gap-sm"></div></div>
+      </section>
+
+      <section id="tab-state" class="tab-panel">
+        <div class="section-tabs state-tabs"><button class="section-tab active" type="button" data-state-tab="energy">🌿 Энергия</button><button class="section-tab" type="button" data-state-tab="wheel">🛞 Колесо жизни</button></div>
+        <div id="state-view-energy" class="section-view active">
+          <div class="section-actions"><div><h3>Энергия и самочувствие</h3><p class="muted">Энергия, стресс и общее состояние за день.</p></div><input id="energyMonth" type="month" /></div>
+          <div class="life-summary-grid"><article class="summary-card"><span>Средняя энергия</span><strong id="energyAverage">—</strong><small>из 5</small></article><article class="summary-card"><span>Средний стресс</span><strong id="stressAverage">—</strong><small>из 5</small></article><article class="summary-card"><span>Самочувствие</span><strong id="wellbeingAverage">—</strong><small>из 5</small></article><article class="summary-card"><span>Отмечено</span><strong id="energyDaysCount">0</strong><small>дней</small></article></div>
+          <div class="two-col align-start"><article class="panel"><h3>Запись за день</h3><form id="energyForm" class="stack gap-md"><label class="field"><span>Дата</span><input id="energyDate" type="date" required /></label><div class="form-grid"><label class="field"><span>Энергия</span><select id="energyValue"><option value="5">5 — много сил</option><option value="4">4</option><option value="3">3 — нормально</option><option value="2">2</option><option value="1">1 — сил нет</option></select></label><label class="field"><span>Стресс</span><select id="stressValue"><option value="1">1 — спокойно</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5 — высокий</option></select></label><label class="field"><span>Самочувствие</span><select id="wellbeingValue"><option value="5">5 — отлично</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1 — плохо</option></select></label></div><label class="field"><span>Заметка</span><textarea id="energyNote" rows="4"></textarea></label><button class="btn primary" type="submit">Сохранить</button></form></article><article class="panel"><h3>Последние записи</h3><div id="energyHistory" class="journal-list"></div></article></div>
+        </div>
+        <div id="state-view-wheel" class="section-view"><div class="section-actions"><div><h3>Колесо жизни</h3><p class="muted">Оцените ключевые сферы от 1 до 10.</p></div><input id="lifeWheelMonth" type="month" /></div><div class="two-col align-start"><article class="panel wheel-chart-panel"><div id="lifeWheelChart" class="life-wheel-chart"></div><div id="lifeWheelAverage" class="wheel-average"></div></article><article class="panel"><form id="lifeWheelForm" class="stack gap-md"><div id="lifeWheelInputs" class="wheel-inputs"></div><button class="btn primary" type="submit">Сохранить оценки месяца</button></form></article></div></div>
+      </section>
+
+      <section id="tab-growth" class="tab-panel"><div class="section-actions"><div><h3>Развитие и обучение</h3><p class="muted">Курсы, обучение и навыки с прогрессом.</p></div><button id="addCourseBtn" class="btn primary" type="button">+ Добавить курс</button></div><div class="life-summary-grid"><article class="summary-card"><span>Активно</span><strong id="coursesActiveCount">0</strong><small>курсов</small></article><article class="summary-card"><span>Завершено</span><strong id="coursesFinishedCount">0</strong><small>курсов</small></article><article class="summary-card"><span>Хочу изучить</span><strong id="coursesWishlistCount">0</strong><small>в списке</small></article><article class="summary-card"><span>Средний прогресс</span><strong id="coursesAverageProgress">0%</strong><small>обучения</small></article></div><div id="coursesList" class="cards-grid"></div></section>
+
+      <section id="tab-results" class="tab-panel"><div class="section-actions"><div><h3>Мой год</h3><p class="muted">Ваши результаты и достижения в одном месте.</p></div><div class="row gap-sm"><select id="resultsYear"></select><button id="addAchievementBtn" class="btn secondary" type="button">+ Достижение</button></div></div><div id="yearStats" class="year-stats-grid"></div><div class="two-col align-start"><article class="panel"><div class="panel-head"><div><h3>🏆 Автоматические достижения</h3><p class="muted">Собираются из данных кабинета.</p></div></div><div id="autoAchievements" class="achievement-grid"></div></article><article class="panel"><div class="panel-head"><div><h3>✨ Мои достижения</h3><p class="muted">То, чем вы хотите гордиться.</p></div></div><div id="manualAchievements" class="journal-list"></div></article></div></section>
+
       <section id="tab-settings" class="tab-panel">
         <div class="two-col align-start">
           <article class="panel">
@@ -447,19 +532,29 @@
     </main>
 
     <nav class="mobile-nav" aria-label="Разделы личного кабинета">
-      <button class="nav-item active" data-tab="dashboard">🏠<span>Главная</span></button>
+      <button class="nav-item active" data-tab="dashboard">🏠<span>Сегодня</span></button>
       <button class="nav-item" data-tab="finance">💰<span>Финансы</span></button>
       <button class="nav-item" data-tab="habits">✅<span>Привычки</span></button>
       <button class="nav-item" data-tab="tasks">📋<span>Задачи</span></button>
+      <button class="nav-item" data-tab="plan">🎯<span>План</span></button>
       <button class="nav-item" data-tab="books">📚<span>Книги</span></button>
       <button class="nav-item" data-tab="media">🎬<span>Кино</span></button>
       <button class="nav-item" data-tab="mood">😊<span>Настроение</span></button>
       <button class="nav-item" data-tab="sleep">😴<span>Сон</span></button>
+      <button class="nav-item" data-tab="state">🌿<span>Состояние</span></button>
+      <button class="nav-item" data-tab="growth">🎓<span>Развитие</span></button>
+      <button class="nav-item" data-tab="results">🏆<span>Итоги</span></button>
       <button class="nav-item" data-tab="settings">⚙️<span>Настройки</span></button>
     </nav>
   </div>
 
 
+  <dialog id="goalDialog" class="modal"><form id="goalForm" method="dialog" class="modal-card"><div class="panel-head"><div><h3 id="goalDialogTitle">Новая цель</h3><p class="muted">Измеримая цель с понятным прогрессом.</p></div><button class="icon-btn dialog-close" data-dialog="goalDialog" type="button">✕</button></div><input id="goalId" type="hidden" /><div class="form-grid"><label class="field full-span"><span>Название</span><input id="goalTitle" required maxlength="180" /></label><label class="field"><span>Сфера</span><select id="goalCategory"><option value="finance">💰 Финансы</option><option value="work">💼 Работа</option><option value="growth">🎓 Развитие</option><option value="home">🏠 Дом</option><option value="health">🌿 Самочувствие</option><option value="other">✨ Другое</option></select></label><label class="field"><span>Срок</span><input id="goalTargetDate" type="date" /></label><label class="field"><span>Цель</span><input id="goalTargetValue" type="number" min="0" step="0.01" value="100" /></label><label class="field"><span>Сейчас</span><input id="goalCurrentValue" type="number" min="0" step="0.01" value="0" /></label><label class="field"><span>Единица</span><input id="goalUnit" maxlength="30" /></label><label class="field"><span>Статус</span><select id="goalStatus"><option value="active">В работе</option><option value="paused">На паузе</option><option value="done">Готово</option></select></label><label class="field full-span"><span>Заметки</span><textarea id="goalNotes" rows="4"></textarea></label></div><div class="modal-actions"><button id="deleteGoalBtn" class="btn danger hidden" type="button">Удалить</button><div class="row gap-sm"><button class="btn ghost dialog-close" data-dialog="goalDialog" type="button">Отмена</button><button class="btn primary" type="submit">Сохранить</button></div></div></form></dialog>
+  <dialog id="projectDialog" class="modal"><form id="projectForm" method="dialog" class="modal-card"><div class="panel-head"><div><h3 id="projectDialogTitle">Новый проект</h3><p class="muted">Большая задача с этапами и дедлайном.</p></div><button class="icon-btn dialog-close" data-dialog="projectDialog" type="button">✕</button></div><input id="projectId" type="hidden" /><div class="form-grid"><label class="field full-span"><span>Название</span><input id="projectTitle" required /></label><label class="field"><span>Направление</span><select id="projectArea"><option value="work">💼 Работа</option><option value="tutoring">📚 Репетиторство</option><option value="content">📱 Контент</option><option value="home">🏠 Дом</option><option value="personal">✨ Личное</option><option value="other">Другое</option></select></label><label class="field"><span>Статус</span><select id="projectStatus"><option value="planned">Запланирован</option><option value="active">В работе</option><option value="paused">На паузе</option><option value="done">Готово</option></select></label><label class="field"><span>Дедлайн</span><input id="projectDeadline" type="date" /></label><label class="field"><span>Прогресс, %</span><input id="projectProgress" type="number" min="0" max="100" /></label><label class="field full-span"><span>Заметки</span><textarea id="projectNotes" rows="4"></textarea></label></div><div class="modal-actions"><button id="deleteProjectBtn" class="btn danger hidden" type="button">Удалить</button><div class="row gap-sm"><button class="btn ghost dialog-close" data-dialog="projectDialog" type="button">Отмена</button><button class="btn primary" type="submit">Сохранить</button></div></div></form></dialog>
+  <dialog id="projectStepDialog" class="modal"><form id="projectStepForm" method="dialog" class="modal-card compact-modal"><div class="panel-head"><h3>Добавить этап</h3><button class="icon-btn dialog-close" data-dialog="projectStepDialog" type="button">✕</button></div><input id="projectStepProjectId" type="hidden" /><label class="field"><span>Этап</span><input id="projectStepTitle" required /></label><div class="modal-actions"><span></span><button class="btn primary" type="submit">Добавить</button></div></form></dialog>
+  <dialog id="inboxDialog" class="modal"><form id="inboxForm" method="dialog" class="modal-card compact-modal"><div class="panel-head"><div><h3>Записать мысль</h3><p class="muted">Разобрать можно позже.</p></div><button class="icon-btn dialog-close" data-dialog="inboxDialog" type="button">✕</button></div><label class="field"><span>Мысль</span><textarea id="inboxText" rows="5" required></textarea></label><label class="field"><span>Тип</span><select id="inboxType"><option value="idea">💡 Идея</option><option value="task">📋 Задача</option><option value="purchase">🛍️ Покупка</option><option value="content">📱 Контент</option><option value="other">Другое</option></select></label><div class="modal-actions"><span></span><button class="btn primary" type="submit">Сохранить</button></div></form></dialog>
+  <dialog id="courseDialog" class="modal"><form id="courseForm" method="dialog" class="modal-card"><div class="panel-head"><div><h3 id="courseDialogTitle">Добавить курс</h3><p class="muted">Курс, программа обучения или навык.</p></div><button class="icon-btn dialog-close" data-dialog="courseDialog" type="button">✕</button></div><input id="courseId" type="hidden" /><div class="form-grid"><label class="field full-span"><span>Название</span><input id="courseTitle" required /></label><label class="field"><span>Платформа / автор</span><input id="courseProvider" /></label><label class="field"><span>Статус</span><select id="courseStatus"><option value="wishlist">Хочу изучить</option><option value="active">Изучаю</option><option value="paused">На паузе</option><option value="finished">Завершено</option></select></label><label class="field"><span>Всего уроков</span><input id="courseTotalUnits" type="number" min="0" /></label><label class="field"><span>Пройдено</span><input id="courseCompletedUnits" type="number" min="0" /></label><label class="field full-span"><span>Ссылка</span><input id="courseUrl" type="url" /></label><label class="field full-span"><span>Заметки</span><textarea id="courseNotes" rows="4"></textarea></label></div><div class="modal-actions"><button id="deleteCourseBtn" class="btn danger hidden" type="button">Удалить</button><div class="row gap-sm"><button class="btn ghost dialog-close" data-dialog="courseDialog" type="button">Отмена</button><button class="btn primary" type="submit">Сохранить</button></div></div></form></dialog>
+  <dialog id="achievementDialog" class="modal"><form id="achievementForm" method="dialog" class="modal-card compact-modal"><div class="panel-head"><div><h3>Добавить достижение</h3><p class="muted">Запишите то, чем хочется гордиться.</p></div><button class="icon-btn dialog-close" data-dialog="achievementDialog" type="button">✕</button></div><label class="field"><span>Достижение</span><input id="achievementTitle" required /></label><div class="form-grid"><label class="field"><span>Дата</span><input id="achievementDate" type="date" required /></label><label class="field"><span>Сфера</span><select id="achievementCategory"><option value="finance">💰 Финансы</option><option value="work">💼 Работа</option><option value="growth">🎓 Развитие</option><option value="personal">✨ Личное</option><option value="other">Другое</option></select></label></div><label class="field"><span>Почему это важно</span><textarea id="achievementNote" rows="4"></textarea></label><div class="modal-actions"><span></span><button class="btn primary" type="submit">Сохранить</button></div></form></dialog>
   <dialog id="bookDialog" class="modal media-modal book-modal">
     <form id="bookForm" method="dialog" class="modal-card media-modal-card">
       <div class="panel-head media-modal-header">
@@ -617,7 +712,7 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=9"></script>
-  <script src="app.js?v=9"></script>
+  <script src="config.js?v=10.1"></script>
+  <script src="app.js?v=10.1"></script>
 </body>
 </html>

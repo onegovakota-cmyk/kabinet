@@ -22,10 +22,13 @@
   let bookShelfFilter = 'all';
   let mediaShelfFilter = 'all';
   let financeSubtab = 'overview';
+  let planSubtab = 'goals';
+  let stateSubtab = 'energy';
   let state = {
     settings: { monthly_income_target: 110000, yearly_book_goal: 24, daily_reading_goal_minutes: 20, sleep_goal_hours: 8, theme: 'violet' },
     debts: [], fixed: [], incomes: [], expenses: [], payments: [], habits: [], habitLogs: [], tasks: [],
-    books: [], readingLogs: [], media: [], moods: [], sleep: []
+    books: [], readingLogs: [], media: [], moods: [], sleep: [],
+    goals: [], projects: [], projectSteps: [], monthPlans: [], monthEvents: [], weeklyReviews: [], inbox: [], energy: [], courses: [], achievements: [], lifeWheel: []
   };
 
   const moodMeta = {
@@ -56,14 +59,18 @@
   let readingTimer = { running:false, startedAt:null, accumulated:0, bookId:null, tick:null };
 
   const tabMeta = {
-    dashboard: ['Главная', 'Ваш финансовый обзор на сегодня'],
+    dashboard: ['Сегодня', 'Главное на сегодня без лишнего шума'],
     finance: ['Финансы', 'Доходы, расходы, долги и свободный остаток в одном месте'],
     habits: ['Привычки', 'Трекер на каждый день месяца'],
     tasks: ['Задачи', 'Работа, репетиторство и домашние дела'],
+    plan: ['Планирование', 'Цели, проекты, месяц, неделя и Inbox'],
     books: ['Книги', 'Библиотека, прогресс, дневник и статистика чтения'],
     media: ['Фильмы и сериалы', 'Хочу посмотреть, смотрю и уже посмотрела'],
     mood: ['Настроение', 'Как менялось ваше настроение по дням'],
     sleep: ['Сон', 'Длительность и качество сна по дням'],
+    state: ['Состояние', 'Энергия, стресс, самочувствие и баланс сфер жизни'],
+    growth: ['Развитие', 'Курсы, обучение и навыки с понятным прогрессом'],
+    results: ['Итоги', 'Достижения и ваш год в цифрах'],
     settings: ['Настройки', 'Параметры вашего личного кабинета']
   };
 
@@ -102,6 +109,10 @@
     if (tab === 'media') renderMedia();
     if (tab === 'mood') renderMood();
     if (tab === 'sleep') renderSleep();
+    if (tab === 'plan') renderPlanning();
+    if (tab === 'state') renderState();
+    if (tab === 'growth') renderGrowth();
+    if (tab === 'results') renderResults();
   }
 
   function switchFinanceView(view = 'overview') {
@@ -109,6 +120,25 @@
     $$('.finance-view').forEach(el => el.classList.toggle('active', el.id === `finance-view-${financeSubtab}`));
     $$('[data-finance-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.financeTab === financeSubtab));
   }
+
+  function switchPlanView(view = 'goals') {
+    planSubtab = ['goals','projects','month','week','inbox'].includes(view) ? view : 'goals';
+    $$('.plan-tabs [data-plan-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.planTab === planSubtab));
+    $$('[id^="plan-view-"]').forEach(el => el.classList.toggle('active', el.id === `plan-view-${planSubtab}`));
+    if (planSubtab === 'month') renderMonthPlan();
+    if (planSubtab === 'week') renderWeeklyReview();
+  }
+
+  function switchStateView(view = 'energy') {
+    stateSubtab = ['energy','wheel'].includes(view) ? view : 'energy';
+    $$('.state-tabs [data-state-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.stateTab === stateSubtab));
+    $$('[id^="state-view-"]').forEach(el => el.classList.toggle('active', el.id === `state-view-${stateSubtab}`));
+    if (stateSubtab === 'wheel') renderLifeWheel();
+  }
+
+  function monthFirst(ym) { return `${ym}-01`; }
+  function mondayOf(iso) { const d=new Date((iso||todayISO())+'T12:00:00'); const day=d.getDay()||7; d.setDate(d.getDate()-day+1); return d.toISOString().slice(0,10); }
+  function inRange(date,start,end){ return !!date && date>=start && date<=end; }
 
 
   function monthsRemaining(targetDate) {
@@ -202,7 +232,7 @@
     if (!user) return;
     if (!silent) setSync('Обновление…', true);
     const uid = user.id;
-    const [settings, debts, fixed, incomes, expenses, payments, habits, habitLogs, tasks, books, readingLogs, media, moods, sleep] = await Promise.all([
+    const [settings, debts, fixed, incomes, expenses, payments, habits, habitLogs, tasks, books, readingLogs, media, moods, sleep, goals, projects, projectSteps, monthPlans, monthEvents, weeklyReviews, inbox, energy, courses, achievements, lifeWheel] = await Promise.all([
       sb.from('pf_settings').select('*').eq('user_id', uid).maybeSingle(),
       sb.from('pf_debts').select('*').eq('user_id', uid).order('priority'),
       sb.from('pf_fixed_expenses').select('*').eq('user_id', uid).order('created_at'),
@@ -216,10 +246,21 @@
       sb.from('pf_reading_logs').select('*, pf_books(title)').eq('user_id', uid).order('read_on', {ascending:false}).order('created_at', {ascending:false}),
       sb.from('pf_media').select('*').eq('user_id', uid).order('updated_at', {ascending:false}),
       sb.from('pf_moods').select('*').eq('user_id', uid).order('day', {ascending:false}),
-      sb.from('pf_sleep').select('*').eq('user_id', uid).order('day', {ascending:false})
+      sb.from('pf_sleep').select('*').eq('user_id', uid).order('day', {ascending:false}),
+      sb.from('pf_goals').select('*').eq('user_id', uid).order('created_at', {ascending:false}),
+      sb.from('pf_projects').select('*').eq('user_id', uid).order('updated_at', {ascending:false}),
+      sb.from('pf_project_steps').select('*').eq('user_id', uid).order('sort_order').order('created_at'),
+      sb.from('pf_month_plans').select('*').eq('user_id', uid).order('month', {ascending:false}),
+      sb.from('pf_month_events').select('*').eq('user_id', uid).order('event_date', {ascending:true}),
+      sb.from('pf_weekly_reviews').select('*').eq('user_id', uid).order('week_start', {ascending:false}),
+      sb.from('pf_inbox').select('*').eq('user_id', uid).order('created_at', {ascending:false}),
+      sb.from('pf_energy').select('*').eq('user_id', uid).order('day', {ascending:false}),
+      sb.from('pf_courses').select('*').eq('user_id', uid).order('updated_at', {ascending:false}),
+      sb.from('pf_achievements').select('*').eq('user_id', uid).order('achieved_on', {ascending:false}),
+      sb.from('pf_life_wheel').select('*').eq('user_id', uid).order('month', {ascending:false})
     ]);
 
-    const errors = [settings,debts,fixed,incomes,expenses,payments,habits,habitLogs,tasks,books,readingLogs,media,moods,sleep].map(x=>x.error).filter(Boolean);
+    const errors = [settings,debts,fixed,incomes,expenses,payments,habits,habitLogs,tasks,books,readingLogs,media,moods,sleep,goals,projects,projectSteps,monthPlans,monthEvents,weeklyReviews,inbox,energy,courses,achievements,lifeWheel].map(x=>x.error).filter(Boolean);
     if (errors.length) {
       console.error(errors);
       toast('Не удалось загрузить часть данных. Проверьте supabase.sql.', 'error');
@@ -242,6 +283,10 @@
     state.media = media.data || [];
     state.moods = moods.data || [];
     state.sleep = sleep.data || [];
+    state.goals = goals.data || []; state.projects = projects.data || []; state.projectSteps = projectSteps.data || [];
+    state.monthPlans = monthPlans.data || []; state.monthEvents = monthEvents.data || []; state.weeklyReviews = weeklyReviews.data || [];
+    state.inbox = inbox.data || []; state.energy = energy.data || []; state.courses = courses.data || [];
+    state.achievements = achievements.data || []; state.lifeWheel = lifeWheel.data || [];
 
     renderAll();
     setSync('Синхронизировано', false);
@@ -266,6 +311,11 @@
     renderMedia();
     renderMood();
     renderSleep();
+    renderPlanning();
+    renderState();
+    renderGrowth();
+    renderResults();
+    renderTodayOverview();
   }
 
   function renderDashboard() {
@@ -316,6 +366,89 @@
     renderTodayTasks();
     renderTodayHabits();
     renderLifeDashboard();
+  }
+
+  // ===== v10: планирование, состояние, развитие, итоги =====
+  const goalCategoryMeta = {finance:'💰 Финансы',work:'💼 Работа',growth:'🎓 Развитие',home:'🏠 Дом',health:'🌿 Самочувствие',other:'✨ Другое'};
+  const projectAreaMeta = {work:'💼 Работа',tutoring:'📚 Репетиторство',content:'📱 Контент',home:'🏠 Дом',personal:'✨ Личное',other:'Другое'};
+  const wheelAreas = [['finance','Финансы'],['work','Работа'],['growth','Развитие'],['rest','Отдых'],['health','Здоровье / энергия'],['home','Дом'],['relationships','Отношения'],['creativity','Творчество']];
+
+  function renderTodayOverview() {
+    if (!$('#todayHeroDate')) return;
+    const fmt=new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+    const label=fmt.format(new Date(todayISO()+'T12:00:00'));
+    $('#todayHeroDate').textContent=label.charAt(0).toUpperCase()+label.slice(1);
+    const ym=currentMonthISO();
+    const plan=state.monthPlans.find(x=>String(x.month).slice(0,7)===ym);
+    $('#todayFocusText').textContent=plan?.focus||'Главный фокус месяца пока не задан.';
+    const inc=state.incomes.filter(x=>isInMonth(x.received_on,ym)).reduce((s,x)=>s+num(x.amount),0);
+    const exp=state.expenses.filter(x=>isInMonth(x.spent_on,ym)).reduce((s,x)=>s+num(x.amount),0);
+    const pay=state.payments.filter(x=>isInMonth(x.paid_on,ym)).reduce((s,x)=>s+num(x.amount),0);
+    $('#todayFreeMoney').textContent=money(inc-exp-pay);
+    const mood=state.moods.find(x=>x.day===todayISO()); $('#todayMoodMini').textContent=mood?(moodMeta[mood.mood]?.emoji||mood.mood):'—';
+    const sleep=state.sleep.find(x=>x.day===todayISO())||state.sleep[0]; $('#todaySleepMini').textContent=sleep?`${(num(sleep.duration_minutes)/60).toFixed(1)} ч`:'—';
+    const en=state.energy.find(x=>x.day===todayISO()); $('#todayEnergyMini').textContent=en?`${en.energy}/5`:'—';
+  }
+
+  function renderPlanning(){
+    $('#planGoalsCount').textContent=state.goals.filter(x=>x.status==='active').length+state.debts.filter(x=>x.active!==false&&num(x.current_balance)>0).length;
+    $('#planProjectsCount').textContent=state.projects.filter(x=>x.status==='active').length;
+    $('#planInboxCount').textContent=state.inbox.filter(x=>x.status==='inbox').length;
+    const p=state.monthPlans.find(x=>String(x.month).slice(0,7)===currentMonthISO()); $('#planMonthFocusMini').textContent=p?.focus?(p.focus.length>22?p.focus.slice(0,22)+'…':p.focus):'—';
+    renderGoals();renderProjects();renderInbox();switchPlanView(planSubtab);
+  }
+  function goalProgressCard(title,meta,current,target,unit='',deadline='',extra=''){
+    const pct=target>0?clamp(current/target*100,0,100):0;
+    return `<article class="goal-card"><div class="goal-card-head"><div><span class="status-pill">${esc(meta)}</span><h4>${esc(title)}</h4></div><strong>${Math.round(pct)}%</strong></div><div class="progress"><span style="width:${pct}%"></span></div><div class="goal-values"><span>${esc(String(current))}${unit?' '+esc(unit):''}</span><span>из ${esc(String(target))}${unit?' '+esc(unit):''}</span></div>${deadline?`<div class="muted">Срок: ${prettyDate(deadline)}</div>`:''}${extra}</article>`;
+  }
+  function renderGoals(){
+    const auto=[];
+    state.debts.filter(d=>d.active!==false).forEach(d=>{const initial=Math.max(num(d.initial_balance),num(d.current_balance));const paid=Math.max(0,initial-num(d.current_balance));auto.push(goalProgressCard(`Закрыть: ${d.name}`,'Автоматическая · Финансы',Math.round(paid),Math.round(initial),'₽',d.target_date,`<div class="goal-foot"><span>Осталось ${money(d.current_balance)}</span></div>`));});
+    const year=new Date().getFullYear(), finished=state.books.filter(b=>b.status==='finished'&&(b.finished_on||'').startsWith(String(year))).length, target=num(state.settings.yearly_book_goal||24);
+    auto.push(goalProgressCard('Книжная цель года','Автоматическая · Книги',finished,target,'книг',`${year}-12-31`));
+    $('#automaticGoals').innerHTML=auto.join('');
+    $('#customGoals').innerHTML=state.goals.length?state.goals.map(g=>{const pct=num(g.target_value)>0?clamp(num(g.current_value)/num(g.target_value)*100,0,100):(g.status==='done'?100:0);return `<article class="goal-card ${g.status==='done'?'done-card':''}"><div class="goal-card-head"><div><span class="status-pill">${goalCategoryMeta[g.category]||'✨ Другое'}</span><h4>${esc(g.title)}</h4></div><button class="text-btn edit-goal" data-id="${g.id}">Изменить</button></div><div class="progress"><span style="width:${pct}%"></span></div><div class="goal-values"><span>${num(g.current_value)} ${esc(g.unit||'')}</span><span>${num(g.target_value)} ${esc(g.unit||'')}</span></div><div class="goal-foot"><span>${g.status==='done'?'✓ Готово':g.status==='paused'?'На паузе':'В работе'}</span><span>${g.target_date?prettyDate(g.target_date):'Без срока'}</span></div>${g.notes?`<p class="card-note">${esc(g.notes)}</p>`:''}</article>`;}).join(''):'<article class="panel"><div class="empty">Добавьте первую личную цель.</div></article>';
+    $$('.edit-goal').forEach(b=>b.onclick=()=>openGoalEdit(b.dataset.id));
+  }
+  function renderProjects(){
+    $('#projectsList').innerHTML=state.projects.length?state.projects.map(p=>{const steps=state.projectSteps.filter(s=>s.project_id===p.id),done=steps.filter(s=>s.completed).length,pct=steps.length?Math.round(done/steps.length*100):num(p.progress);return `<article class="project-card"><div class="project-card-head"><div><span class="status-pill ${p.status==='done'?'finished':p.status==='paused'?'paused':p.status==='active'?'reading':''}">${projectAreaMeta[p.area]||'Проект'} · ${p.status==='done'?'Готово':p.status==='active'?'В работе':p.status==='paused'?'Пауза':'План'}</span><h4>${esc(p.title)}</h4></div><button class="text-btn edit-project" data-id="${p.id}">Изменить</button></div><div class="progress"><span style="width:${clamp(pct,0,100)}%"></span></div><div class="project-meta"><span>${steps.length?`${done}/${steps.length} этапов`:`${Math.round(pct)}%`}</span><span>${p.deadline?`до ${prettyDate(p.deadline)}`:'без дедлайна'}</span></div><div class="project-steps">${steps.map(s=>`<label class="project-step ${s.completed?'done':''}"><input class="project-step-check" type="checkbox" data-id="${s.id}" ${s.completed?'checked':''}/><span>${esc(s.title)}</span><button class="project-step-delete" data-id="${s.id}" type="button">✕</button></label>`).join('')||'<div class="empty">Этапов пока нет.</div>'}</div><div class="row gap-sm"><button class="btn ghost small-btn add-project-step" type="button" data-project="${p.id}">+ Этап</button><button class="btn ghost small-btn project-to-task" type="button" data-project="${p.id}">+ Задача</button></div></article>`;}).join(''):'<article class="panel"><div class="empty">Создайте первый проект.</div></article>';
+    $$('.edit-project').forEach(b=>b.onclick=()=>openProjectEdit(b.dataset.id));$$('.add-project-step').forEach(b=>b.onclick=()=>openProjectStep(b.dataset.project));$$('.project-step-check').forEach(c=>c.onchange=()=>toggleProjectStep(c.dataset.id,c.checked));$$('.project-to-task').forEach(b=>b.onclick=()=>{switchTab('tasks');$('#taskProject').value=b.dataset.project;$('#taskTitle').focus();});$$('.project-step-delete').forEach(b=>b.onclick=()=>deleteRow('pf_project_steps',b.dataset.id,'Этап удалён'));
+  }
+  function renderMonthPlan(){
+    const ym=$('#monthPlanMonth')?.value||currentMonthISO();if($('#monthPlanMonth')&&!$('#monthPlanMonth').value)$('#monthPlanMonth').value=ym;
+    const p=state.monthPlans.find(x=>String(x.month).slice(0,7)===ym);$('#monthFocus').value=p?.focus||'';$('#monthPriority1').value=p?.priority1||'';$('#monthPriority2').value=p?.priority2||'';$('#monthPriority3').value=p?.priority3||'';$('#monthNotes').value=p?.notes||'';
+    if($('#monthEventDate')&&!$('#monthEventDate').value?.startsWith(ym))$('#monthEventDate').value=`${ym}-01`;
+    const rows=state.monthEvents.filter(x=>(x.event_date||'').startsWith(ym)).map(x=>({date:x.event_date,title:x.title,type:x.event_type,amount:x.amount,id:x.id,source:'event'}));
+    state.goals.filter(g=>g.target_date?.startsWith(ym)).forEach(g=>rows.push({date:g.target_date,title:`Цель: ${g.title}`,type:'deadline',source:'goal'}));state.projects.filter(p=>p.deadline?.startsWith(ym)).forEach(p=>rows.push({date:p.deadline,title:`Проект: ${p.title}`,type:'deadline',source:'project'}));state.tasks.filter(t=>t.task_date?.startsWith(ym)&&!t.completed).forEach(t=>rows.push({date:t.task_date,title:`Задача: ${t.title}`,type:'task',source:'task'}));rows.sort((a,b)=>a.date.localeCompare(b.date));
+    const icons={event:'📌',payment:'💳',purchase:'🛍️',birthday:'🎂',deadline:'⏰',task:'📋',other:'•'};$('#monthTimeline').innerHTML=rows.length?rows.map(e=>`<div class="timeline-row"><div class="timeline-date">${prettyDate(e.date)}</div><div class="timeline-dot">${icons[e.type]||'•'}</div><div class="timeline-content"><strong>${esc(e.title)}</strong>${num(e.amount)>0?`<span>${money(e.amount)}</span>`:''}</div>${e.source==='event'?`<button class="text-btn delete-month-event" data-id="${e.id}">Удалить</button>`:''}</div>`).join(''):'<div class="empty">На этот месяц пока нет важных дат.</div>';$$('.delete-month-event').forEach(b=>b.onclick=()=>deleteRow('pf_month_events',b.dataset.id,'Событие удалено'));
+  }
+  function weekBoundsFromDate(date){const start=mondayOf(date);return {start,end:addDaysISO(start,6)};}
+  function renderWeeklyReview(){
+    const date=$('#weeklyReviewDate')?.value||todayISO();if($('#weeklyReviewDate')&&!$('#weeklyReviewDate').value)$('#weeklyReviewDate').value=date;const {start,end}=weekBoundsFromDate(date),r=state.weeklyReviews.find(x=>x.week_start===start);$('#weekWins').value=r?.wins||'';$('#weekChallenges').value=r?.challenges||'';$('#weekDrained').value=r?.drained||'';$('#weekNextFocus').value=r?.next_focus||'';$('#weekScore').value=String(r?.score||8);
+    const tasks=state.tasks.filter(t=>inRange(t.task_date,start,end)),done=tasks.filter(t=>t.completed).length,reading=state.readingLogs.filter(x=>inRange(x.read_on,start,end)).reduce((s,x)=>s+num(x.minutes),0),moods=state.moods.filter(x=>inRange(x.day,start,end)),sleeps=state.sleep.filter(x=>inRange(x.day,start,end));const am=moods.length?moods.reduce((s,x)=>s+num(x.mood),0)/moods.length:0,as=sleeps.length?sleeps.reduce((s,x)=>s+num(x.duration_minutes),0)/sleeps.length/60:0;
+    $('#weeklyAutoStats').innerHTML=`<article class="summary-card"><span>Задачи</span><strong>${done}/${tasks.length}</strong><small>выполнено</small></article><article class="summary-card"><span>Чтение</span><strong>${reading} мин</strong><small>за неделю</small></article><article class="summary-card"><span>Настроение</span><strong>${am?am.toFixed(1):'—'}</strong><small>из 5</small></article><article class="summary-card"><span>Сон</span><strong>${as?as.toFixed(1)+' ч':'—'}</strong><small>в среднем</small></article>`;
+    $('#weeklyReviewHistory').innerHTML=state.weeklyReviews.length?state.weeklyReviews.slice(0,10).map(x=>`<div class="journal-row"><div><strong>Неделя с ${prettyDate(x.week_start)}</strong><span>Оценка ${x.score}/10${x.next_focus?` · Фокус: ${esc(x.next_focus)}`:''}</span></div><button class="text-btn load-week-review" data-date="${x.week_start}">Открыть</button></div>`).join(''):'<div class="empty">Сохранённых обзоров пока нет.</div>';$$('.load-week-review').forEach(b=>b.onclick=()=>{$('#weeklyReviewDate').value=b.dataset.date;renderWeeklyReview();});
+  }
+  function renderInbox(){
+    const rows=state.inbox.filter(x=>x.status==='inbox');$('#inboxList').innerHTML=rows.length?rows.map(x=>`<article class="inbox-row"><div class="inbox-main"><span class="status-pill">${x.item_type==='idea'?'💡 Идея':x.item_type==='task'?'📋 Задача':x.item_type==='purchase'?'🛍️ Покупка':x.item_type==='content'?'📱 Контент':'Заметка'}</span><strong>${esc(x.text)}</strong><small>${new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(x.created_at))}</small></div><div class="inbox-actions"><button class="text-btn inbox-to" data-action="task" data-id="${x.id}">→ задача</button><button class="text-btn inbox-to" data-action="project" data-id="${x.id}">→ проект</button><button class="text-btn inbox-to" data-action="book" data-id="${x.id}">→ книга</button><button class="text-btn inbox-to" data-action="media" data-id="${x.id}">→ кино</button><button class="text-btn inbox-to" data-action="archive" data-id="${x.id}">✓ разобрано</button></div></article>`).join(''):'<article class="panel"><div class="empty">Inbox пуст — всё разобрано ✨</div></article>';$$('.inbox-to').forEach(b=>b.onclick=()=>processInbox(b.dataset.id,b.dataset.action));
+  }
+  function renderState(){renderEnergy();renderLifeWheel();switchStateView(stateSubtab);}
+  function renderEnergy(){
+    const ym=$('#energyMonth')?.value||currentMonthISO();if($('#energyMonth')&&!$('#energyMonth').value)$('#energyMonth').value=ym;const rows=state.energy.filter(x=>isInMonth(x.day,ym)),avg=k=>rows.length?rows.reduce((s,x)=>s+num(x[k]),0)/rows.length:0;$('#energyAverage').textContent=rows.length?avg('energy').toFixed(1):'—';$('#stressAverage').textContent=rows.length?avg('stress').toFixed(1):'—';$('#wellbeingAverage').textContent=rows.length?avg('wellbeing').toFixed(1):'—';$('#energyDaysCount').textContent=rows.length;$('#energyHistory').innerHTML=state.energy.slice(0,14).map(x=>`<div class="journal-row"><div><strong>${prettyDate(x.day)} · ⚡ ${x.energy}/5 · стресс ${x.stress}/5</strong><span>${x.note?esc(x.note):'Без заметки'}</span></div><button class="text-btn load-energy" data-day="${x.day}">Изменить</button></div>`).join('')||'<div class="empty">Записей пока нет.</div>';$$('.load-energy').forEach(b=>b.onclick=()=>loadEnergyDay(b.dataset.day));
+  }
+  function lifeWheelScores(ym){const v={};state.lifeWheel.filter(x=>String(x.month).slice(0,7)===ym).forEach(x=>v[x.area]=num(x.score));return v;}
+  function renderLifeWheel(){const ym=$('#lifeWheelMonth')?.value||currentMonthISO();if($('#lifeWheelMonth')&&!$('#lifeWheelMonth').value)$('#lifeWheelMonth').value=ym;const scores=lifeWheelScores(ym);$('#lifeWheelInputs').innerHTML=wheelAreas.map(([key,label])=>{const v=scores[key]||5;return `<label class="wheel-input"><div><span>${esc(label)}</span><strong id="wheel-value-${key}">${v}</strong></div><input type="range" min="1" max="10" value="${v}" data-wheel-area="${key}" /></label>`;}).join('');$$('[data-wheel-area]').forEach(r=>r.oninput=()=>{$(`#wheel-value-${r.dataset.wheelArea}`).textContent=r.value;renderLifeWheelChart();});renderLifeWheelChart();}
+  function renderLifeWheelChart(){const chart=$('#lifeWheelChart');if(!chart)return;const controls=$$('[data-wheel-area]'),vals=wheelAreas.map(([key])=>num(controls.find(x=>x.dataset.wheelArea===key)?.value||5)),cx=150,cy=150,R=112,n=wheelAreas.length,point=(i,r)=>{const a=-Math.PI/2+i*2*Math.PI/n;return [cx+Math.cos(a)*r,cy+Math.sin(a)*r];};let grid='';[2,4,6,8,10].forEach(level=>grid+=`<polygon points="${wheelAreas.map((_,i)=>point(i,R*level/10).join(',')).join(' ')}" fill="none" stroke="var(--border)"/>`);const axes=wheelAreas.map((_,i)=>{const p=point(i,R);return `<line x1="${cx}" y1="${cy}" x2="${p[0]}" y2="${p[1]}" stroke="var(--border)"/>`;}).join(''),poly=wheelAreas.map((_,i)=>point(i,R*vals[i]/10).join(',')).join(' '),labels=wheelAreas.map(([k,label],i)=>{const p=point(i,R+24);return `<text x="${p[0]}" y="${p[1]}" text-anchor="middle">${esc(label.split(' / ')[0])}</text>`;}).join('');chart.innerHTML=`<svg viewBox="0 0 300 300">${grid}${axes}<polygon class="wheel-result" points="${poly}"/>${labels}</svg>`;const avg=vals.reduce((a,b)=>a+b,0)/vals.length;$('#lifeWheelAverage').innerHTML=`Средний баланс: <strong>${avg.toFixed(1)}/10</strong>`;}
+  function renderGrowth(){
+    const active=state.courses.filter(x=>x.status==='active'),finished=state.courses.filter(x=>x.status==='finished'),wish=state.courses.filter(x=>x.status==='wishlist'),avg=active.length?active.reduce((s,x)=>s+(num(x.total_units)>0?clamp(num(x.completed_units)/num(x.total_units)*100,0,100):0),0)/active.length:0;$('#coursesActiveCount').textContent=active.length;$('#coursesFinishedCount').textContent=finished.length;$('#coursesWishlistCount').textContent=wish.length;$('#coursesAverageProgress').textContent=`${Math.round(avg)}%`;
+    $('#coursesList').innerHTML=state.courses.length?state.courses.map(c=>{const pct=num(c.total_units)>0?clamp(num(c.completed_units)/num(c.total_units)*100,0,100):(c.status==='finished'?100:0);return `<article class="course-card"><div class="project-card-head"><div><span class="status-pill ${c.status==='finished'?'finished':c.status==='paused'?'paused':c.status==='active'?'reading':'wishlist'}">${c.status==='finished'?'Завершено':c.status==='active'?'Изучаю':c.status==='paused'?'Пауза':'Хочу изучить'}</span><h4>${esc(c.title)}</h4><span class="muted">${esc(c.provider||'')}</span></div><button class="text-btn edit-course" data-id="${c.id}">Изменить</button></div><div class="progress"><span style="width:${pct}%"></span></div><div class="project-meta"><span>${num(c.completed_units)} / ${num(c.total_units)||'—'} уроков</span><strong>${Math.round(pct)}%</strong></div>${c.url?`<a class="text-btn inline-link" href="${esc(c.url)}" target="_blank" rel="noopener">Открыть курс ↗</a>`:''}${c.notes?`<p class="card-note">${esc(c.notes)}</p>`:''}</article>`;}).join(''):'<article class="panel"><div class="empty">Добавьте курс или навык.</div></article>';$$('.edit-course').forEach(b=>b.onclick=()=>openCourseEdit(b.dataset.id));
+  }
+  function yearRange(year){return {start:`${year}-01-01`,end:`${year}-12-31`};}
+  function renderResults(){
+    const sel=$('#resultsYear'),current=new Date().getFullYear();if(!sel.options.length){for(let y=current;y>=current-5;y--){const o=document.createElement('option');o.value=y;o.textContent=y;sel.appendChild(o);}}const year=num(sel.value||current),{start,end}=yearRange(year),incomes=state.incomes.filter(x=>inRange(x.received_on,start,end)),expenses=state.expenses.filter(x=>inRange(x.spent_on,start,end)),payments=state.payments.filter(x=>inRange(x.paid_on,start,end)),books=state.books.filter(x=>x.status==='finished'&&inRange(x.finished_on,start,end)),media=state.media.filter(x=>x.status==='watched'&&inRange(x.watched_on,start,end)),tasks=state.tasks.filter(x=>inRange(x.task_date,start,end)),moods=state.moods.filter(x=>inRange(x.day,start,end)),sleeps=state.sleep.filter(x=>inRange(x.day,start,end)),energies=state.energy.filter(x=>inRange(x.day,start,end)),sum=(a,k)=>a.reduce((s,x)=>s+num(x[k]),0),avg=(a,k)=>a.length?sum(a,k)/a.length:0;
+    const income=sum(incomes,'amount'),expense=sum(expenses,'amount'),debt=sum(payments,'amount');$('#yearStats').innerHTML=`<article class="year-stat"><span>💰 Доход</span><strong>${money(income)}</strong></article><article class="year-stat"><span>🧾 Расходы</span><strong>${money(expense)}</strong></article><article class="year-stat"><span>💳 На долги</span><strong>${money(debt)}</strong></article><article class="year-stat"><span>📚 Книги</span><strong>${books.length}</strong></article><article class="year-stat"><span>🎬 Просмотрено</span><strong>${media.length}</strong></article><article class="year-stat"><span>✅ Задачи</span><strong>${tasks.filter(x=>x.completed).length}</strong></article><article class="year-stat"><span>😊 Настроение</span><strong>${moods.length?avg(moods,'mood').toFixed(1):'—'}</strong></article><article class="year-stat"><span>😴 Сон</span><strong>${sleeps.length?(avg(sleeps,'duration_minutes')/60).toFixed(1)+' ч':'—'}</strong></article><article class="year-stat"><span>🌿 Энергия</span><strong>${energies.length?avg(energies,'energy').toFixed(1):'—'}</strong></article>`;
+    const auto=[];state.debts.filter(d=>num(d.current_balance)<=0).forEach(d=>auto.push(['💳',`Закрыт долг «${d.name}»`]));if(books.length>=5)auto.push(['📚',`Прочитано ${books.length} книг за год`]);if(books.length>=10)auto.push(['🔥','10+ книг за год']);if(media.length>=25)auto.push(['🎬',`${media.length} фильмов и сериалов просмотрено`]);const dt=tasks.filter(x=>x.completed).length;if(dt>=100)auto.push(['✅',`${dt} выполненных задач`]);const fc=state.courses.filter(c=>c.status==='finished'&&(!c.finished_on||inRange(c.finished_on,start,end))).length;if(fc)auto.push(['🎓',`Завершено курсов: ${fc}`]);if(income>0){const ms={};incomes.forEach(x=>{const m=x.received_on.slice(0,7);ms[m]=(ms[m]||0)+num(x.amount)});const best=Object.entries(ms).sort((a,b)=>b[1]-a[1])[0];if(best)auto.push(['💰',`Лучший месяц по доходу: ${money(best[1])}`]);}$('#autoAchievements').innerHTML=auto.length?auto.map(([i,t])=>`<div class="achievement-card"><span>${i}</span><strong>${esc(t)}</strong></div>`).join(''):'<div class="empty">Автоматические достижения появятся по мере заполнения кабинета.</div>';
+    const manual=state.achievements.filter(a=>inRange(a.achieved_on,start,end));$('#manualAchievements').innerHTML=manual.length?manual.map(a=>`<div class="journal-row"><div><strong>${esc(a.title)}</strong><span>${prettyDate(a.achieved_on)}${a.note?' · '+esc(a.note):''}</span></div><button class="text-btn delete-achievement" data-id="${a.id}">Удалить</button></div>`).join(''):'<div class="empty">Добавьте личное достижение.</div>';$$('.delete-achievement').forEach(b=>b.onclick=()=>deleteRow('pf_achievements',b.dataset.id,'Достижение удалено'));
   }
 
   function renderFinanceSummary() {
@@ -499,6 +632,12 @@
   }
 
   function renderTasks() {
+    const projectSelect=$('#taskProject');
+    if (projectSelect) {
+      const current=projectSelect.value;
+      projectSelect.innerHTML='<option value="">Без проекта</option>'+state.projects.filter(p=>p.status!=='done').map(p=>`<option value="${p.id}">${esc(p.title)}</option>`).join('');
+      if ([...projectSelect.options].some(o=>o.value===current)) projectSelect.value=current;
+    }
     const date = $('#taskDate').value || todayISO();
     if (!$('#taskDate').value) $('#taskDate').value = date;
     const categories = ['work','tutoring','home'];
@@ -512,7 +651,8 @@
   }
 
   function taskRow(t) {
-    return `<div class="task-row ${t.completed?'completed':''}"><input class="task-check" type="checkbox" ${t.completed?'checked':''} data-id="${t.id}" /><span class="task-text">${esc(t.title)}</span><button class="task-delete" data-id="${t.id}" title="Удалить">✕</button></div>`;
+    const project=state.projects.find(p=>p.id===t.project_id);
+    return `<div class="task-row ${t.completed?'completed':''}"><input class="task-check" type="checkbox" ${t.completed?'checked':''} data-id="${t.id}" /><span class="task-text">${esc(t.title)}${project?`<small class="task-project-label">🚀 ${esc(project.title)}</small>`:''}</span><button class="task-delete" data-id="${t.id}" title="Удалить">✕</button></div>`;
   }
 
   function bindTaskEvents() {
@@ -1102,6 +1242,17 @@
     await loadAll({silent:true});
   }
 
+  function openGoalNew(){ $('#goalForm').reset();$('#goalId').value='';$('#goalDialogTitle').textContent='Новая цель';$('#goalTargetValue').value=100;$('#goalCurrentValue').value=0;$('#goalStatus').value='active';$('#deleteGoalBtn').classList.add('hidden');$('#goalDialog').showModal(); }
+  function openGoalEdit(id){const g=state.goals.find(x=>x.id===id);if(!g)return;$('#goalId').value=g.id;$('#goalDialogTitle').textContent='Изменить цель';$('#goalTitle').value=g.title;$('#goalCategory').value=g.category||'other';$('#goalTargetDate').value=g.target_date||'';$('#goalTargetValue').value=num(g.target_value);$('#goalCurrentValue').value=num(g.current_value);$('#goalUnit').value=g.unit||'';$('#goalStatus').value=g.status||'active';$('#goalNotes').value=g.notes||'';$('#deleteGoalBtn').classList.remove('hidden');$('#goalDialog').showModal();}
+  function openProjectNew(){ $('#projectForm').reset();$('#projectId').value='';$('#projectDialogTitle').textContent='Новый проект';$('#projectProgress').value=0;$('#projectStatus').value='planned';$('#deleteProjectBtn').classList.add('hidden');$('#projectDialog').showModal(); }
+  function openProjectEdit(id){const p=state.projects.find(x=>x.id===id);if(!p)return;$('#projectId').value=p.id;$('#projectDialogTitle').textContent='Изменить проект';$('#projectTitle').value=p.title;$('#projectArea').value=p.area||'other';$('#projectStatus').value=p.status||'planned';$('#projectDeadline').value=p.deadline||'';$('#projectProgress').value=num(p.progress);$('#projectNotes').value=p.notes||'';$('#deleteProjectBtn').classList.remove('hidden');$('#projectDialog').showModal();}
+  function openProjectStep(id){$('#projectStepForm').reset();$('#projectStepProjectId').value=id;$('#projectStepDialog').showModal();}
+  function openCourseNew(){ $('#courseForm').reset();$('#courseId').value='';$('#courseDialogTitle').textContent='Добавить курс';$('#courseStatus').value='wishlist';$('#deleteCourseBtn').classList.add('hidden');$('#courseDialog').showModal(); }
+  function openCourseEdit(id){const c=state.courses.find(x=>x.id===id);if(!c)return;$('#courseId').value=c.id;$('#courseDialogTitle').textContent='Изменить курс';$('#courseTitle').value=c.title;$('#courseProvider').value=c.provider||'';$('#courseStatus').value=c.status||'wishlist';$('#courseTotalUnits').value=num(c.total_units);$('#courseCompletedUnits').value=num(c.completed_units);$('#courseUrl').value=c.url||'';$('#courseNotes').value=c.notes||'';$('#deleteCourseBtn').classList.remove('hidden');$('#courseDialog').showModal();}
+  function loadEnergyDay(day){const x=state.energy.find(e=>e.day===day);$('#energyDate').value=day;$('#energyValue').value=String(x?.energy||3);$('#stressValue').value=String(x?.stress||3);$('#wellbeingValue').value=String(x?.wellbeing||3);$('#energyNote').value=x?.note||'';switchTab('state');stateSubtab='energy';switchStateView('energy');}
+  async function toggleProjectStep(id,completed){const {error}=await sb.from('pf_project_steps').update({completed}).eq('id',id).eq('user_id',user.id);if(error)toast('Не удалось обновить этап','error');else await loadAll({silent:true});}
+  async function processInbox(id,action){const item=state.inbox.find(x=>x.id===id);if(!item)return;let result={error:null};if(action==='task')result=await sb.from('pf_tasks').insert({user_id:user.id,title:item.text,category:'work',task_date:todayISO(),completed:false});if(action==='project')result=await sb.from('pf_projects').insert({user_id:user.id,title:item.text,area:'other',status:'planned',progress:0});if(action==='book')result=await sb.from('pf_books').insert({user_id:user.id,title:item.text,status:'wishlist',book_format:'other'});if(action==='media')result=await sb.from('pf_media').insert({user_id:user.id,title:item.text,media_type:'movie',status:'wishlist'});if(result.error){console.error(result.error);toast('Не удалось перенести запись','error');return;}const {error}=await sb.from('pf_inbox').update({status:'processed',processed_at:new Date().toISOString()}).eq('id',id).eq('user_id',user.id);if(error)toast('Не удалось отметить запись разобранной','error');else toast(action==='archive'?'Запись разобрана':'Перенесено');await loadAll({silent:true});}
+
   function bindUI() {
     $$('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
       if (b.dataset.tab === 'finance') financeSubtab = 'overview';
@@ -1114,6 +1265,15 @@
       if (b.dataset.go === 'finance') switchFinanceView(financeSubtab);
     }));
     $$('[data-finance-tab]').forEach(b=>b.addEventListener('click',()=>switchFinanceView(b.dataset.financeTab)));
+    $$('[data-plan-tab]').forEach(b=>b.addEventListener('click',()=>switchPlanView(b.dataset.planTab)));
+    $$('[data-state-tab]').forEach(b=>b.addEventListener('click',()=>switchStateView(b.dataset.stateTab)));
+    $('#addGoalBtn').onclick=openGoalNew; $('#addProjectBtn').onclick=openProjectNew;
+    $('#addInboxBtn').onclick=()=>{ $('#inboxForm').reset(); $('#inboxDialog').showModal(); };
+    $('#addCourseBtn').onclick=openCourseNew;
+    $('#addAchievementBtn').onclick=()=>{ $('#achievementForm').reset(); $('#achievementDate').value=todayISO(); $('#achievementDialog').showModal(); };
+    $('#monthPlanMonth').addEventListener('change',renderMonthPlan); $('#weeklyReviewDate').addEventListener('change',renderWeeklyReview);
+    $('#energyMonth').addEventListener('change',renderEnergy); $('#lifeWheelMonth').addEventListener('change',renderLifeWheel); $('#resultsYear').addEventListener('change',renderResults);
+    $$('[data-quick]').forEach(b=>b.addEventListener('click',()=>{const q=b.dataset.quick;if(q==='income'){financeSubtab='incomes';switchTab('finance');switchFinanceView('incomes');$('#incomeAmount')?.focus();}if(q==='expense'){financeSubtab='expenses';switchTab('finance');switchFinanceView('expenses');$('#expenseAmount')?.focus();}if(q==='task'){switchTab('tasks');$('#taskTitle')?.focus();}if(q==='idea'){ $('#inboxForm').reset();$('#inboxDialog').showModal(); }if(q==='mood')openMood(todayISO());if(q==='sleep')openSleep(todayISO());if(q==='energy'){switchTab('state');stateSubtab='energy';switchStateView('energy');$('#energyDate').value=todayISO();}}));
     $('#refreshBtn').onclick = ()=>loadAll();
     $('#logoutBtn').onclick = logout;
     $('#logoutBtn2').onclick = logout;
@@ -1232,6 +1392,21 @@
       });
     });
 
+    $('#goalForm').addEventListener('submit',async e=>{e.preventDefault();const id=$('#goalId').value,payload={title:$('#goalTitle').value.trim(),category:$('#goalCategory').value,target_date:$('#goalTargetDate').value||null,target_value:num($('#goalTargetValue').value),current_value:num($('#goalCurrentValue').value),unit:$('#goalUnit').value.trim()||null,status:$('#goalStatus').value,notes:$('#goalNotes').value.trim()||null};const r=id?await sb.from('pf_goals').update(payload).eq('id',id).eq('user_id',user.id):await sb.from('pf_goals').insert({...payload,user_id:user.id});if(r.error){console.error(r.error);toast('Не удалось сохранить цель','error');return;}$('#goalDialog').close();toast('Цель сохранена');await loadAll({silent:true});});
+    $('#deleteGoalBtn').onclick=async()=>{const id=$('#goalId').value;if(!id||!confirm('Удалить цель?'))return;const {error}=await sb.from('pf_goals').delete().eq('id',id).eq('user_id',user.id);if(error)toast('Не удалось удалить','error');else{$('#goalDialog').close();toast('Цель удалена');await loadAll({silent:true});}};
+    $('#projectForm').addEventListener('submit',async e=>{e.preventDefault();const id=$('#projectId').value,payload={title:$('#projectTitle').value.trim(),area:$('#projectArea').value,status:$('#projectStatus').value,deadline:$('#projectDeadline').value||null,progress:clamp(num($('#projectProgress').value),0,100),notes:$('#projectNotes').value.trim()||null};const r=id?await sb.from('pf_projects').update(payload).eq('id',id).eq('user_id',user.id):await sb.from('pf_projects').insert({...payload,user_id:user.id});if(r.error){console.error(r.error);toast('Не удалось сохранить проект','error');return;}$('#projectDialog').close();toast('Проект сохранён');await loadAll({silent:true});});
+    $('#deleteProjectBtn').onclick=async()=>{const id=$('#projectId').value;if(!id||!confirm('Удалить проект и его этапы?'))return;const {error}=await sb.from('pf_projects').delete().eq('id',id).eq('user_id',user.id);if(error)toast('Не удалось удалить','error');else{$('#projectDialog').close();toast('Проект удалён');await loadAll({silent:true});}};
+    $('#projectStepForm').addEventListener('submit',async e=>{e.preventDefault();const {error}=await sb.from('pf_project_steps').insert({user_id:user.id,project_id:$('#projectStepProjectId').value,title:$('#projectStepTitle').value.trim()});if(error)toast('Не удалось добавить этап','error');else{$('#projectStepDialog').close();toast('Этап добавлен');await loadAll({silent:true});}});
+    $('#monthPlanForm').addEventListener('submit',async e=>{e.preventDefault();const ym=$('#monthPlanMonth').value||currentMonthISO(),payload={user_id:user.id,month:monthFirst(ym),focus:$('#monthFocus').value.trim()||null,priority1:$('#monthPriority1').value.trim()||null,priority2:$('#monthPriority2').value.trim()||null,priority3:$('#monthPriority3').value.trim()||null,notes:$('#monthNotes').value.trim()||null};const {error}=await sb.from('pf_month_plans').upsert(payload,{onConflict:'user_id,month'});if(error)toast('Не удалось сохранить месяц','error');else{toast('План месяца сохранён');await loadAll({silent:true});}});
+    $('#monthEventForm').addEventListener('submit',async e=>{e.preventDefault();const payload={user_id:user.id,title:$('#monthEventTitle').value.trim(),event_date:$('#monthEventDate').value,event_type:$('#monthEventType').value,amount:num($('#monthEventAmount').value)||null};const {error}=await sb.from('pf_month_events').insert(payload);if(error)toast('Не удалось добавить событие','error');else{toast('Дата добавлена');e.target.reset();$('#monthEventDate').value=`${$('#monthPlanMonth').value||currentMonthISO()}-01`;await loadAll({silent:true});}});
+    $('#weeklyReviewForm').addEventListener('submit',async e=>{e.preventDefault();const payload={user_id:user.id,week_start:mondayOf($('#weeklyReviewDate').value||todayISO()),wins:$('#weekWins').value.trim()||null,challenges:$('#weekChallenges').value.trim()||null,drained:$('#weekDrained').value.trim()||null,next_focus:$('#weekNextFocus').value.trim()||null,score:num($('#weekScore').value)};const {error}=await sb.from('pf_weekly_reviews').upsert(payload,{onConflict:'user_id,week_start'});if(error)toast('Не удалось сохранить обзор','error');else{toast('Обзор недели сохранён');await loadAll({silent:true});}});
+    $('#inboxForm').addEventListener('submit',async e=>{e.preventDefault();const {error}=await sb.from('pf_inbox').insert({user_id:user.id,text:$('#inboxText').value.trim(),item_type:$('#inboxType').value,status:'inbox'});if(error)toast('Не удалось сохранить мысль','error');else{$('#inboxDialog').close();toast('Записано в Inbox');await loadAll({silent:true});}});
+    $('#energyForm').addEventListener('submit',async e=>{e.preventDefault();const payload={user_id:user.id,day:$('#energyDate').value,energy:num($('#energyValue').value),stress:num($('#stressValue').value),wellbeing:num($('#wellbeingValue').value),note:$('#energyNote').value.trim()||null};const {error}=await sb.from('pf_energy').upsert(payload,{onConflict:'user_id,day'});if(error)toast('Не удалось сохранить состояние','error');else{toast('Состояние сохранено');await loadAll({silent:true});}});
+    $('#lifeWheelForm').addEventListener('submit',async e=>{e.preventDefault();const ym=$('#lifeWheelMonth').value||currentMonthISO(),rows=$$('[data-wheel-area]').map(r=>({user_id:user.id,month:monthFirst(ym),area:r.dataset.wheelArea,score:num(r.value)}));const {error}=await sb.from('pf_life_wheel').upsert(rows,{onConflict:'user_id,month,area'});if(error)toast('Не удалось сохранить колесо жизни','error');else{toast('Колесо жизни сохранено');await loadAll({silent:true});}});
+    $('#courseForm').addEventListener('submit',async e=>{e.preventDefault();const id=$('#courseId').value,status=$('#courseStatus').value;let completed=Math.round(num($('#courseCompletedUnits').value)),total=Math.round(num($('#courseTotalUnits').value));if(total>0)completed=Math.min(completed,total);const payload={title:$('#courseTitle').value.trim(),provider:$('#courseProvider').value.trim()||null,status,total_units:total,completed_units:completed,url:$('#courseUrl').value.trim()||null,notes:$('#courseNotes').value.trim()||null,started_on:status==='active'?todayISO():null,finished_on:status==='finished'?todayISO():null};const r=id?await sb.from('pf_courses').update(payload).eq('id',id).eq('user_id',user.id):await sb.from('pf_courses').insert({...payload,user_id:user.id});if(r.error){console.error(r.error);toast('Не удалось сохранить курс','error');return;}$('#courseDialog').close();toast('Курс сохранён');await loadAll({silent:true});});
+    $('#deleteCourseBtn').onclick=async()=>{const id=$('#courseId').value;if(!id||!confirm('Удалить курс?'))return;const {error}=await sb.from('pf_courses').delete().eq('id',id).eq('user_id',user.id);if(error)toast('Не удалось удалить','error');else{$('#courseDialog').close();toast('Курс удалён');await loadAll({silent:true});}};
+    $('#achievementForm').addEventListener('submit',async e=>{e.preventDefault();const {error}=await sb.from('pf_achievements').insert({user_id:user.id,title:$('#achievementTitle').value.trim(),achieved_on:$('#achievementDate').value,category:$('#achievementCategory').value,note:$('#achievementNote').value.trim()||null});if(error)toast('Не удалось добавить достижение','error');else{$('#achievementDialog').close();toast('Достижение добавлено');await loadAll({silent:true});}});
+
     $('#authModeToggle').onclick = () => {
       authMode = authMode === 'login' ? 'register' : 'login';
       $('#authSubmit').textContent = authMode === 'login' ? 'Войти' : 'Создать аккаунт';
@@ -1270,9 +1445,56 @@
 
     $('#incomeForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const payload = {user_id:user.id, amount:num($('#incomeAmount').value), category:$('#incomeCategory').value, income_method:$('#incomeMethod').value, received_on:$('#incomeDate').value, note:$('#incomeNote').value.trim() || null};
-      const {error} = await sb.from('pf_incomes').insert(payload);
-      if (error) toast('Не удалось добавить доход','error'); else { toast('Доход добавлен'); e.target.reset(); $('#incomeDate').value=todayISO(); $('#incomeMethod').value='card'; }
+
+      const amount=num($('#incomeAmount').value);
+      if (!(amount > 0)) {
+        toast('Введите сумму дохода больше 0 ₽','error');
+        return;
+      }
+
+      const payload = {
+        user_id:user.id,
+        amount,
+        category:$('#incomeCategory').value,
+        income_method:$('#incomeMethod').value,
+        received_on:$('#incomeDate').value || todayISO(),
+        note:$('#incomeNote').value.trim() || null
+      };
+
+      let result = await sb.from('pf_incomes').insert(payload);
+
+      // Совместимость со старой схемой: если колонка income_method ещё не создана,
+      // доход всё равно сохраняется, а пользователь получает понятную подсказку.
+      const msg = String(result.error?.message || '');
+      const schemaMissing = result.error && (
+        result.error.code === 'PGRST204' ||
+        result.error.code === '42703' ||
+        msg.includes('income_method') ||
+        msg.includes("Could not find the 'income_method' column")
+      );
+
+      if (schemaMissing) {
+        const legacyPayload = {...payload};
+        delete legacyPayload.income_method;
+        result = await sb.from('pf_incomes').insert(legacyPayload);
+
+        if (!result.error) {
+          console.warn('Доход сохранён без income_method: требуется SQL v10.1');
+          toast('Доход добавлен. Чтобы сохранять «карта/наличные», запустите SQL v10.1.');
+        }
+      }
+
+      if (result.error) {
+        console.error('Income insert error:', result.error);
+        const detail = result.error.message || result.error.details || result.error.hint || 'неизвестная ошибка';
+        toast(`Не удалось добавить доход: ${detail}`,'error');
+        return;
+      }
+
+      if (!schemaMissing) toast('Доход добавлен');
+      e.target.reset();
+      $('#incomeDate').value=todayISO();
+      $('#incomeMethod').value='card';
       await loadAll({silent:true});
     });
 
@@ -1310,7 +1532,7 @@
 
     $('#taskForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const payload = {user_id:user.id,title:$('#taskTitle').value.trim(),category:$('#taskCategory').value,task_date:$('#taskDate').value,completed:false};
+      const payload = {user_id:user.id,title:$('#taskTitle').value.trim(),category:$('#taskCategory').value,task_date:$('#taskDate').value,project_id:$('#taskProject').value||null,completed:false};
       const {error} = await sb.from('pf_tasks').insert(payload);
       if (error) toast('Не удалось добавить задачу','error'); else { $('#taskTitle').value=''; toast('Задача добавлена'); }
       await loadAll({silent:true});
@@ -1490,6 +1712,7 @@
     $('#readingMonth').value = currentMonthISO();
     $('#moodMonth').value = currentMonthISO();
     $('#sleepMonth').value = currentMonthISO();
+    $('#monthPlanMonth').value = currentMonthISO(); $('#weeklyReviewDate').value = todayISO(); $('#energyMonth').value = currentMonthISO(); $('#energyDate').value = todayISO(); $('#lifeWheelMonth').value = currentMonthISO(); $('#achievementDate').value = todayISO();
     $('#readingDate').value = todayISO();
     $('#moodDate').value = todayISO();
     $('#sleepDate').value = todayISO();
