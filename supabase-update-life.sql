@@ -17,7 +17,8 @@ $$;
 alter table public.pf_settings
   add column if not exists yearly_book_goal integer not null default 24,
   add column if not exists daily_reading_goal_minutes integer not null default 20,
-  add column if not exists sleep_goal_hours numeric(4,1) not null default 8.0;
+  add column if not exists sleep_goal_hours numeric(4,1) not null default 8.0,
+  add column if not exists theme text not null default 'violet';
 
 create table if not exists public.pf_books (
   id uuid primary key default gen_random_uuid(),
@@ -69,9 +70,12 @@ create table if not exists public.pf_media (
   episodes_total integer not null default 0 check (episodes_total >= 0),
   watched_on date,
   notes text,
+  impression text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.pf_media add column if not exists impression text;
 
 create index if not exists pf_media_user_status_idx on public.pf_media(user_id, status);
 

@@ -8,7 +8,7 @@
   <title>Мой личный кабинет</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=6" />
+  <link rel="stylesheet" href="style.css?v=8" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -45,9 +45,7 @@
       </div>
       <nav id="mainNav" class="nav-list">
         <button class="nav-item active" data-tab="dashboard">🏠 <span>Главная</span></button>
-        <button class="nav-item" data-tab="debts">💳 <span>Долги</span></button>
-        <button class="nav-item" data-tab="incomes">💰 <span>Доходы</span></button>
-        <button class="nav-item" data-tab="expenses">🧾 <span>Расходы</span></button>
+        <button class="nav-item" data-tab="finance">💰 <span>Финансы</span></button>
         <button class="nav-item" data-tab="habits">✅ <span>Привычки</span></button>
         <button class="nav-item" data-tab="tasks">📋 <span>Задачи</span></button>
         <button class="nav-item" data-tab="books">📚 <span>Книги</span></button>
@@ -89,7 +87,7 @@
             <div class="plan-note" id="planNote"></div>
           </article>
           <article class="panel">
-            <div class="panel-head"><div><h3>Долги</h3><p class="muted">Цели и прогноз по текущим остаткам</p></div><button class="text-btn" data-go="debts">Открыть →</button></div>
+            <div class="panel-head"><div><h3>Долги</h3><p class="muted">Цели и прогноз по текущим остаткам</p></div><button class="text-btn" data-go="finance" data-finance-view="debts">Открыть →</button></div>
             <div id="dashboardDebts" class="stack gap-sm"></div>
           </article>
         </div>
@@ -125,25 +123,64 @@
         </div>
       </section>
 
-      <section id="tab-debts" class="tab-panel">
-        <div class="section-actions">
-          <div><h3>Мои долги</h3><p class="muted">Остаток можно корректировать по данным банка — так прогноз будет точнее.</p></div>
-          <button id="addDebtBtn" class="btn primary" type="button">+ Добавить долг</button>
+      <section id="tab-finance" class="tab-panel">
+        <div class="finance-summary-grid">
+          <article class="summary-card income"><span>Доходы за месяц</span><strong id="financeIncomeTotal">0 ₽</strong><small>все поступления</small></article>
+          <article class="summary-card expense"><span>Расходы за месяц</span><strong id="financeExpenseTotal">0 ₽</strong><small>без платежей по долгам</small></article>
+          <article class="summary-card debt"><span>Платежи по долгам</span><strong id="financeDebtTotal">0 ₽</strong><small>за текущий месяц</small></article>
+          <article class="summary-card balance finance-balance-card"><span>Осталось денег</span><strong id="financeBalanceTotal">0 ₽</strong><small>доходы − расходы − долги</small></article>
         </div>
-        <div id="debtsList" class="cards-grid"></div>
-        <article class="panel mt-lg">
-          <div class="panel-head"><h3>История платежей по долгам</h3><span id="debtPaymentsMonthTotal" class="badge good">0 ₽</span></div>
-          <div id="debtPaymentsHistory" class="table-wrap"></div>
-        </article>
-      </section>
 
-      <section id="tab-incomes" class="tab-panel">
+        <div class="finance-wallet-grid">
+          <article class="wallet-card">
+            <span class="wallet-icon">💳</span>
+            <div><small>Доход на карту</small><strong id="financeCardIncome">0 ₽</strong></div>
+          </article>
+          <article class="wallet-card">
+            <span class="wallet-icon">💵</span>
+            <div><small>Доход наличными</small><strong id="financeCashIncome">0 ₽</strong></div>
+          </article>
+        </div>
+
+        <div id="financeTabs" class="finance-tabs" aria-label="Разделы финансов">
+          <button class="finance-tab active" type="button" data-finance-tab="overview">Обзор</button>
+          <button class="finance-tab" type="button" data-finance-tab="incomes">Доходы</button>
+          <button class="finance-tab" type="button" data-finance-tab="expenses">Расходы</button>
+          <button class="finance-tab" type="button" data-finance-tab="debts">Долги</button>
+        </div>
+
+        <div id="finance-view-overview" class="finance-view active">
+          <div class="two-col align-start">
+            <article class="panel">
+              <div class="panel-head">
+                <div><h3>Распределение дохода</h3><p class="muted">Ориентир по вашему текущему финансовому плану.</p></div>
+              </div>
+              <div id="financeAllocationPlan" class="allocation-list"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-head">
+                <div><h3>Баланс месяца</h3><p class="muted">Сколько денег остаётся после внесённых расходов и платежей.</p></div>
+              </div>
+              <div class="finance-balance-breakdown">
+                <div><span>Получено</span><strong id="financeOverviewIncome">0 ₽</strong></div>
+                <div><span>Потрачено</span><strong id="financeOverviewSpent">0 ₽</strong></div>
+                <div><span>На долги</span><strong id="financeOverviewDebt">0 ₽</strong></div>
+                <div class="total"><span>Свободный остаток</span><strong id="financeOverviewBalance">0 ₽</strong></div>
+              </div>
+              <p class="hint">«На карте / наличными» показывает способ получения доходов. Общий остаток считается как все доходы минус расходы и платежи по долгам.</p>
+            </article>
+          </div>
+        </div>
+
+        <div id="finance-view-incomes" class="finance-view">
+
         <div class="two-col align-start">
           <article class="panel">
             <h3>Добавить доход</h3>
             <form id="incomeForm" class="stack gap-md">
               <label class="field"><span>Сумма</span><input id="incomeAmount" type="number" min="0.01" step="0.01" required placeholder="15000" /></label>
               <label class="field"><span>Источник</span><select id="incomeCategory"><option>Школа</option><option>Репетиторство</option><option>Игры и материалы</option><option>Другое</option></select></label>
+              <label class="field"><span>Куда поступили деньги</span><select id="incomeMethod" required><option value="card">💳 На карту</option><option value="cash">💵 Наличными</option></select></label>
               <label class="field"><span>Дата</span><input id="incomeDate" type="date" required /></label>
               <label class="field"><span>Комментарий</span><input id="incomeNote" type="text" maxlength="120" placeholder="необязательно" /></label>
               <button class="btn primary" type="submit">Добавить доход</button>
@@ -158,9 +195,10 @@
           </article>
         </div>
         <article class="panel mt-lg"><div class="panel-head"><h3>История доходов</h3><span id="incomeMonthTotal" class="badge good">0 ₽</span></div><div id="incomeHistory" class="table-wrap"></div></article>
-      </section>
+      
+        </div>
+        <div id="finance-view-expenses" class="finance-view">
 
-      <section id="tab-expenses" class="tab-panel">
         <div class="two-col align-start">
           <article class="panel">
             <h3>Добавить расход</h3>
@@ -183,9 +221,24 @@
           </article>
         </div>
         <article class="panel mt-lg"><div class="panel-head"><h3>История расходов</h3><span id="expenseMonthTotal" class="badge warn">0 ₽</span></div><div id="expenseHistory" class="table-wrap"></div></article>
+      
+        </div>
+        <div id="finance-view-debts" class="finance-view">
+
+        <div class="section-actions">
+          <div><h3>Мои долги</h3><p class="muted">Остаток можно корректировать по данным банка — так прогноз будет точнее.</p></div>
+          <button id="addDebtBtn" class="btn primary" type="button">+ Добавить долг</button>
+        </div>
+        <div id="debtsList" class="cards-grid"></div>
+        <article class="panel mt-lg">
+          <div class="panel-head"><h3>История платежей по долгам</h3><span id="debtPaymentsMonthTotal" class="badge good">0 ₽</span></div>
+          <div id="debtPaymentsHistory" class="table-wrap"></div>
+        </article>
+      
+        </div>
       </section>
 
-      <section id="tab-habits" class="tab-panel">
+<section id="tab-habits" class="tab-panel">
         <div class="section-actions">
           <div><h3>Трекер привычек</h3><p class="muted">Создавайте свои привычки и отмечайте каждый день месяца.</p></div>
           <div class="row gap-sm"><input id="habitMonth" type="month" /><button id="addHabitBtn" class="btn primary">+ Привычка</button></div>
@@ -394,9 +447,7 @@
 
     <nav class="mobile-nav" aria-label="Разделы личного кабинета">
       <button class="nav-item active" data-tab="dashboard">🏠<span>Главная</span></button>
-      <button class="nav-item" data-tab="debts">💳<span>Долги</span></button>
-      <button class="nav-item" data-tab="incomes">💰<span>Доходы</span></button>
-      <button class="nav-item" data-tab="expenses">🧾<span>Расходы</span></button>
+      <button class="nav-item" data-tab="finance">💰<span>Финансы</span></button>
       <button class="nav-item" data-tab="habits">✅<span>Привычки</span></button>
       <button class="nav-item" data-tab="tasks">📋<span>Задачи</span></button>
       <button class="nav-item" data-tab="books">📚<span>Книги</span></button>
@@ -424,6 +475,7 @@
           <label class="field"><span>Название</span><input id="bookTitle" maxlength="180" required /></label>
           <label class="field"><span>Автор</span><input id="bookAuthor" maxlength="140" /></label>
           <label class="field"><span>Статус</span><select id="bookStatus"><option value="reading">Читаю</option><option value="wishlist">Хочу прочитать</option><option value="finished">Прочитано</option><option value="paused">Отложено</option></select></label>
+          <label class="field"><span>Формат книги</span><select id="bookFormat"><option value="paper">📖 Бумажная книга</option><option value="ebook">📱 Электронная книга</option><option value="audio">🎧 Аудиокнига</option></select></label>
           <label class="field"><span>Обложка — ссылка на изображение</span><input id="bookCover" type="url" placeholder="https://..." /></label>
           <label class="field"><span>Всего страниц</span><input id="bookTotalPages" type="number" min="0" step="1" /></label>
           <label class="field"><span>Текущая страница</span><input id="bookCurrentPage" type="number" min="0" step="1" /></label>
@@ -564,7 +616,7 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=6"></script>
-  <script src="app.js?v=6"></script>
+  <script src="config.js?v=8"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

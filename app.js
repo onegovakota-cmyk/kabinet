@@ -21,6 +21,7 @@
   let activeTab = 'dashboard';
   let bookShelfFilter = 'all';
   let mediaShelfFilter = 'all';
+  let financeSubtab = 'overview';
   let state = {
     settings: { monthly_income_target: 110000, yearly_book_goal: 24, daily_reading_goal_minutes: 20, sleep_goal_hours: 8, theme: 'violet' },
     debts: [], fixed: [], incomes: [], expenses: [], payments: [], habits: [], habitLogs: [], tasks: [],
@@ -35,6 +36,7 @@
     5: { emoji: '🤩', label: 'Отлично' }
   };
   const bookStatusLabels = { reading:'Читаю', wishlist:'Хочу прочитать', finished:'Прочитано', paused:'Отложено' };
+  const bookFormatLabels = { paper:'📖 Бумажная', ebook:'📱 Электронная', audio:'🎧 Аудиокнига', other:'Формат не указан' };
   const mediaStatusLabels = { wishlist:'Хочу посмотреть', watching:'Смотрю', watched:'Просмотрено', dropped:'Брошено' };
   const mediaTypeLabels = { movie:'Фильм', series:'Сериал' };
   const allowedThemes = new Set(['violet','rose','ocean','sage','peach']);
@@ -55,9 +57,7 @@
 
   const tabMeta = {
     dashboard: ['Главная', 'Ваш финансовый обзор на сегодня'],
-    debts: ['Долги', 'Текущие остатки, цели и платежи'],
-    incomes: ['Доходы', 'Добавляйте поступления и распределяйте их по плану'],
-    expenses: ['Расходы', 'Фактические траты и постоянные расходы'],
+    finance: ['Финансы', 'Доходы, расходы, долги и свободный остаток в одном месте'],
     habits: ['Привычки', 'Трекер на каждый день месяца'],
     tasks: ['Задачи', 'Работа, репетиторство и домашние дела'],
     books: ['Книги', 'Библиотека, прогресс, дневник и статистика чтения'],
@@ -103,6 +103,13 @@
     if (tab === 'mood') renderMood();
     if (tab === 'sleep') renderSleep();
   }
+
+  function switchFinanceView(view = 'overview') {
+    financeSubtab = ['overview','incomes','expenses','debts'].includes(view) ? view : 'overview';
+    $$('.finance-view').forEach(el => el.classList.toggle('active', el.id === `finance-view-${financeSubtab}`));
+    $$('[data-finance-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.financeTab === financeSubtab));
+  }
+
 
   function monthsRemaining(targetDate) {
     if (!targetDate) return null;
@@ -249,6 +256,7 @@
     const currentTheme = applyTheme(state.settings.theme || 'violet');
     $$('input[name="cabinetTheme"]').forEach(r => { r.checked = r.value === currentTheme; });
     renderDashboard();
+    renderFinanceSummary();
     renderDebts();
     renderIncomes();
     renderExpenses();
@@ -308,6 +316,39 @@
     renderTodayTasks();
     renderTodayHabits();
     renderLifeDashboard();
+  }
+
+  function renderFinanceSummary() {
+    const ym = currentMonthISO();
+    const monthIncomes = state.incomes.filter(x=>isInMonth(x.received_on,ym));
+    const monthExpenses = state.expenses.filter(x=>isInMonth(x.spent_on,ym));
+    const monthPayments = state.payments.filter(x=>isInMonth(x.paid_on,ym));
+
+    const income = monthIncomes.reduce((s,x)=>s+num(x.amount),0);
+    const expenses = monthExpenses.reduce((s,x)=>s+num(x.amount),0);
+    const debts = monthPayments.reduce((s,x)=>s+num(x.amount),0);
+    const balance = income - expenses - debts;
+    const cardIncome = monthIncomes.filter(x=>(x.income_method||'other')==='card').reduce((s,x)=>s+num(x.amount),0);
+    const cashIncome = monthIncomes.filter(x=>(x.income_method||'other')==='cash').reduce((s,x)=>s+num(x.amount),0);
+
+    const put = (selector, value) => { const el=$(selector); if (el) el.textContent=money(value); };
+    put('#financeIncomeTotal', income);
+    put('#financeExpenseTotal', expenses);
+    put('#financeDebtTotal', debts);
+    put('#financeBalanceTotal', balance);
+    put('#financeCardIncome', cardIncome);
+    put('#financeCashIncome', cashIncome);
+    put('#financeOverviewIncome', income);
+    put('#financeOverviewSpent', expenses);
+    put('#financeOverviewDebt', debts);
+    put('#financeOverviewBalance', balance);
+
+    [$('#financeBalanceTotal'), $('#financeOverviewBalance')].filter(Boolean)
+      .forEach(el => el.style.color = balance < 0 ? '#d95763' : 'var(--primary)');
+
+    const planBox = $('#financeAllocationPlan');
+    if (planBox) renderAllocation(planBox, buildPlan(), null);
+    switchFinanceView(financeSubtab);
   }
 
   function renderAllocation(container, plan, enteredAmount) {
@@ -400,7 +441,7 @@
     const total = month.reduce((s,x)=>s+num(x.amount),0);
     $('#incomeMonthTotal').textContent = money(total);
     const rows = state.incomes.slice(0,100);
-    $('#incomeHistory').innerHTML = rows.length ? `<table><thead><tr><th>Дата</th><th>Источник</th><th>Комментарий</th><th>Сумма</th><th></th></tr></thead><tbody>${rows.map(x=>`<tr><td>${prettyDate(x.received_on)}</td><td>${esc(x.category)}</td><td>${esc(x.note||'—')}</td><td class="amount-pos">+${money(x.amount)}</td><td class="table-actions"><button class="delete-income" data-id="${x.id}">Удалить</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Доходов пока нет.</div>';
+    $('#incomeHistory').innerHTML = rows.length ? `<table><thead><tr><th>Дата</th><th>Источник</th><th>Получено</th><th>Комментарий</th><th>Сумма</th><th></th></tr></thead><tbody>${rows.map(x=>`<tr><td>${prettyDate(x.received_on)}</td><td>${esc(x.category)}</td><td>${x.income_method==='cash'?'💵 Наличными':x.income_method==='card'?'💳 На карту':'—'}</td><td>${esc(x.note||'—')}</td><td class="amount-pos">+${money(x.amount)}</td><td class="table-actions"><button class="delete-income" data-id="${x.id}">Удалить</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Доходов пока нет.</div>';
     $$('.delete-income').forEach(b=>b.onclick=()=>deleteRow('pf_incomes',b.dataset.id,'Доход удалён'));
     updateSplitPreview();
   }
@@ -563,7 +604,7 @@
       const pct=total ? clamp(current/total*100,0,100) : 0;
       return `<div class="current-book-row">
         <div class="current-book-cover">${smallCoverHTML(b.cover_url)}</div>
-        <div class="current-book-info"><strong>${esc(b.title)}</strong><small>${esc(b.author||'Автор не указан')} · ${total ? `${current} / ${total} стр.` : `стр. ${current}`}</small><div class="progress"><span style="width:${pct}%"></span></div></div>
+        <div class="current-book-info"><strong>${esc(b.title)}</strong><small>${esc(b.author||'Автор не указан')} · ${bookFormatLabels[b.book_format||'other']} · ${total ? `${current} / ${total} стр.` : `стр. ${current}`}</small><div class="progress"><span style="width:${pct}%"></span></div></div>
         <button class="btn primary small book-log" data-id="${b.id}">Записать чтение</button>
       </div>`;
     }).join('') : '<div class="empty">Сейчас нет активной книги. Добавьте книгу со статусом «Читаю».</div>';
@@ -602,7 +643,10 @@
         ${b.favorite ? '<div class="favorite-mark">❤️</div>' : ''}
         ${coverHTML(b.cover_url,'📖',b.title)}
         <div class="library-card-body">
-          <span class="status-pill ${b.status}">${bookStatusLabels[b.status] || b.status}</span>
+          <div class="library-card-badges">
+            <span class="status-pill ${b.status}">${bookStatusLabels[b.status] || b.status}</span>
+            <span class="status-pill">${bookFormatLabels[b.book_format||'other']}</span>
+          </div>
           <div class="library-card-title">${esc(b.title)}</div>
           <div class="library-card-subtitle">${esc(b.author||'Автор не указан')}</div>
           ${total ? `<div class="progress"><span style="width:${pct}%"></span></div><div class="library-card-meta"><span>${current}/${total} стр.</span><strong>${Math.round(pct)}%</strong></div>` : `<div class="library-card-meta"><span>стр. ${current}</span><span>${b.owned?'📚 Куплена':''}</span></div>`}
@@ -661,6 +705,7 @@
     $('#bookTitle').value='';
     $('#bookAuthor').value='';
     $('#bookStatus').value='wishlist';
+    $('#bookFormat').value='paper';
     $('#bookCover').value='';
     $('#bookTotalPages').value='';
     $('#bookCurrentPage').value='0';
@@ -682,6 +727,7 @@
     $('#bookTitle').value=b.title||'';
     $('#bookAuthor').value=b.author||'';
     $('#bookStatus').value=b.status||'wishlist';
+    $('#bookFormat').value=(b.book_format && b.book_format!=='other') ? b.book_format : 'paper';
     $('#bookCover').value=b.cover_url||'';
     $('#bookTotalPages').value=num(b.total_pages);
     $('#bookCurrentPage').value=num(b.current_page);
@@ -1006,8 +1052,17 @@
   }
 
   function bindUI() {
-    $$('[data-tab]').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
-    $$('[data-go]').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.go)));
+    $$('[data-tab]').forEach(b=>b.addEventListener('click',()=>{
+      if (b.dataset.tab === 'finance') financeSubtab = 'overview';
+      switchTab(b.dataset.tab);
+      if (b.dataset.tab === 'finance') switchFinanceView(financeSubtab);
+    }));
+    $$('[data-go]').forEach(b=>b.addEventListener('click',()=>{
+      if (b.dataset.financeView) financeSubtab = b.dataset.financeView;
+      switchTab(b.dataset.go);
+      if (b.dataset.go === 'finance') switchFinanceView(financeSubtab);
+    }));
+    $$('[data-finance-tab]').forEach(b=>b.addEventListener('click',()=>switchFinanceView(b.dataset.financeTab)));
     $('#refreshBtn').onclick = ()=>loadAll();
     $('#logoutBtn').onclick = logout;
     $('#logoutBtn2').onclick = logout;
@@ -1132,9 +1187,9 @@
 
     $('#incomeForm').addEventListener('submit', async e => {
       e.preventDefault();
-      const payload = {user_id:user.id, amount:num($('#incomeAmount').value), category:$('#incomeCategory').value, received_on:$('#incomeDate').value, note:$('#incomeNote').value.trim() || null};
+      const payload = {user_id:user.id, amount:num($('#incomeAmount').value), category:$('#incomeCategory').value, income_method:$('#incomeMethod').value, received_on:$('#incomeDate').value, note:$('#incomeNote').value.trim() || null};
       const {error} = await sb.from('pf_incomes').insert(payload);
-      if (error) toast('Не удалось добавить доход','error'); else { toast('Доход добавлен'); e.target.reset(); $('#incomeDate').value=todayISO(); }
+      if (error) toast('Не удалось добавить доход','error'); else { toast('Доход добавлен'); e.target.reset(); $('#incomeDate').value=todayISO(); $('#incomeMethod').value='card'; }
       await loadAll({silent:true});
     });
 
@@ -1199,6 +1254,7 @@
         title:$('#bookTitle').value.trim(),
         author:$('#bookAuthor').value.trim()||null,
         status,
+        book_format:$('#bookFormat').value,
         cover_url:$('#bookCover').value.trim()||null,
         total_pages:total,
         current_page:current,
