@@ -8,7 +8,7 @@
   <title>Мой личный кабинет</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=3" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -210,12 +210,14 @@
       </section>
     </main>
 
-    <nav class="mobile-nav">
+    <nav class="mobile-nav" aria-label="Разделы личного кабинета">
       <button class="nav-item active" data-tab="dashboard">🏠<span>Главная</span></button>
       <button class="nav-item" data-tab="debts">💳<span>Долги</span></button>
       <button class="nav-item" data-tab="incomes">💰<span>Доходы</span></button>
       <button class="nav-item" data-tab="expenses">🧾<span>Расходы</span></button>
+      <button class="nav-item" data-tab="habits">✅<span>Привычки</span></button>
       <button class="nav-item" data-tab="tasks">📋<span>Задачи</span></button>
+      <button class="nav-item" data-tab="settings">⚙️<span>Настройки</span></button>
     </nav>
   </div>
 
@@ -254,7 +256,7 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="config.js?v=3"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

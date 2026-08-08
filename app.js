@@ -626,7 +626,7 @@
     sb.auth.onAuthStateChange((_event, session) => {
       if (session?.user?.id !== user?.id) onSession(session);
     });
-    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./service-worker.js').catch(console.warn);
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) { navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' }).then(reg => reg.update()).catch(console.warn); }
     window.addEventListener('focus',()=>{ if (user) loadAll({silent:true}); });
   }
 
