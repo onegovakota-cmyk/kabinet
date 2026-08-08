@@ -20,9 +20,23 @@
   let authMode = 'login';
   let activeTab = 'dashboard';
   let state = {
-    settings: { monthly_income_target: 110000 },
-    debts: [], fixed: [], incomes: [], expenses: [], payments: [], habits: [], habitLogs: [], tasks: []
+    settings: { monthly_income_target: 110000, yearly_book_goal: 24, daily_reading_goal_minutes: 20, sleep_goal_hours: 8 },
+    debts: [], fixed: [], incomes: [], expenses: [], payments: [], habits: [], habitLogs: [], tasks: [],
+    books: [], readingLogs: [], media: [], moods: [], sleep: []
   };
+
+  const moodMeta = {
+    1: { emoji: '😣', label: 'Очень плохо' },
+    2: { emoji: '😕', label: 'Плохо' },
+    3: { emoji: '😐', label: 'Нормально' },
+    4: { emoji: '🙂', label: 'Хорошо' },
+    5: { emoji: '🤩', label: 'Отлично' }
+  };
+  const bookStatusLabels = { reading:'Читаю', wishlist:'Хочу прочитать', finished:'Прочитано', paused:'Отложено' };
+  const mediaStatusLabels = { wishlist:'Хочу посмотреть', watching:'Смотрю', watched:'Просмотрено', dropped:'Брошено' };
+  const mediaTypeLabels = { movie:'Фильм', series:'Сериал' };
+
+  let readingTimer = { running:false, startedAt:null, accumulated:0, bookId:null, tick:null };
 
   const tabMeta = {
     dashboard: ['Главная', 'Ваш финансовый обзор на сегодня'],
@@ -31,6 +45,10 @@
     expenses: ['Расходы', 'Фактические траты и постоянные расходы'],
     habits: ['Привычки', 'Трекер на каждый день месяца'],
     tasks: ['Задачи', 'Работа, репетиторство и домашние дела'],
+    books: ['Книги', 'Библиотека, прогресс, дневник и статистика чтения'],
+    media: ['Фильмы и сериалы', 'Хочу посмотреть, смотрю и уже посмотрела'],
+    mood: ['Настроение', 'Как менялось ваше настроение по дням'],
+    sleep: ['Сон', 'Длительность и качество сна по дням'],
     settings: ['Настройки', 'Параметры вашего личного кабинета']
   };
 
@@ -65,6 +83,10 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
     if (tab === 'habits') renderHabits();
     if (tab === 'tasks') renderTasks();
+    if (tab === 'books') renderBooks();
+    if (tab === 'media') renderMedia();
+    if (tab === 'mood') renderMood();
+    if (tab === 'sleep') renderSleep();
   }
 
   function monthsRemaining(targetDate) {
@@ -158,7 +180,7 @@
     if (!user) return;
     if (!silent) setSync('Обновление…', true);
     const uid = user.id;
-    const [settings, debts, fixed, incomes, expenses, payments, habits, habitLogs, tasks] = await Promise.all([
+    const [settings, debts, fixed, incomes, expenses, payments, habits, habitLogs, tasks, books, readingLogs, media, moods, sleep] = await Promise.all([
       sb.from('pf_settings').select('*').eq('user_id', uid).maybeSingle(),
       sb.from('pf_debts').select('*').eq('user_id', uid).order('priority'),
       sb.from('pf_fixed_expenses').select('*').eq('user_id', uid).order('created_at'),
@@ -167,10 +189,15 @@
       sb.from('pf_debt_payments').select('*, pf_debts(name)').eq('user_id', uid).order('paid_on', {ascending:false}).order('created_at',{ascending:false}),
       sb.from('pf_habits').select('*').eq('user_id', uid).eq('active', true).order('created_at'),
       sb.from('pf_habit_logs').select('*').eq('user_id', uid),
-      sb.from('pf_tasks').select('*').eq('user_id', uid).order('created_at')
+      sb.from('pf_tasks').select('*').eq('user_id', uid).order('created_at'),
+      sb.from('pf_books').select('*').eq('user_id', uid).order('updated_at', {ascending:false}),
+      sb.from('pf_reading_logs').select('*, pf_books(title)').eq('user_id', uid).order('read_on', {ascending:false}).order('created_at', {ascending:false}),
+      sb.from('pf_media').select('*').eq('user_id', uid).order('updated_at', {ascending:false}),
+      sb.from('pf_moods').select('*').eq('user_id', uid).order('day', {ascending:false}),
+      sb.from('pf_sleep').select('*').eq('user_id', uid).order('day', {ascending:false})
     ]);
 
-    const errors = [settings,debts,fixed,incomes,expenses,payments,habits,habitLogs,tasks].map(x=>x.error).filter(Boolean);
+    const errors = [settings,debts,fixed,incomes,expenses,payments,habits,habitLogs,tasks,books,readingLogs,media,moods,sleep].map(x=>x.error).filter(Boolean);
     if (errors.length) {
       console.error(errors);
       toast('Не удалось загрузить часть данных. Проверьте supabase.sql.', 'error');
@@ -187,6 +214,11 @@
     state.habits = habits.data || [];
     state.habitLogs = habitLogs.data || [];
     state.tasks = tasks.data || [];
+    state.books = books.data || [];
+    state.readingLogs = readingLogs.data || [];
+    state.media = media.data || [];
+    state.moods = moods.data || [];
+    state.sleep = sleep.data || [];
 
     renderAll();
     setSync('Синхронизировано', false);
@@ -195,12 +227,19 @@
   function renderAll() {
     $('#userEmail').textContent = user?.email || '';
     $('#monthlyIncomeTarget').value = num(state.settings.monthly_income_target || 110000);
+    $('#yearlyBookGoal').value = num(state.settings.yearly_book_goal || 24);
+    $('#dailyReadingGoal').value = num(state.settings.daily_reading_goal_minutes || 20);
+    $('#sleepGoalHours').value = num(state.settings.sleep_goal_hours || 8);
     renderDashboard();
     renderDebts();
     renderIncomes();
     renderExpenses();
     renderHabits();
     renderTasks();
+    renderBooks();
+    renderMedia();
+    renderMood();
+    renderSleep();
   }
 
   function renderDashboard() {
@@ -250,6 +289,7 @@
     $('#todayLabel').textContent = new Intl.DateTimeFormat('ru-RU',{weekday:'long',day:'numeric',month:'long'}).format(new Date());
     renderTodayTasks();
     renderTodayHabits();
+    renderLifeDashboard();
   }
 
   function renderAllocation(container, plan, enteredAmount) {
@@ -429,6 +469,458 @@
     bindTaskEvents();
   }
 
+
+  // ===== Книги =====
+  function coverHTML(url, emoji, alt='') {
+    if (!url) return `<div class="cover"><div class="cover-fallback">${emoji}</div></div>`;
+    return `<div class="cover"><img src="${esc(url)}" alt="${esc(alt)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><div class="cover-fallback">${emoji}</div></div>`;
+  }
+
+  function smallCoverHTML(url, emoji='📚') {
+    if (!url) return emoji;
+    return `<img src="${esc(url)}" alt="" loading="lazy" onerror="this.remove()">`;
+  }
+
+  function stars(rating) {
+    const r = clamp(Math.round(num(rating)), 0, 5);
+    return r ? '★'.repeat(r) + '☆'.repeat(5-r) : 'Без оценки';
+  }
+
+  function addDaysISO(iso, delta) {
+    const d = new Date(iso + 'T12:00:00');
+    d.setDate(d.getDate() + delta);
+    return d.toISOString().slice(0,10);
+  }
+
+  function readingStreakDays() {
+    const days = new Set(state.readingLogs.filter(x => num(x.pages_read) > 0 || num(x.minutes) > 0).map(x => x.read_on));
+    if (!days.size) return 0;
+    let cursor = todayISO();
+    if (!days.has(cursor)) cursor = addDaysISO(cursor, -1);
+    let streak = 0;
+    while (days.has(cursor)) {
+      streak++;
+      cursor = addDaysISO(cursor, -1);
+    }
+    return streak;
+  }
+
+  function calendarHTML(ym, dayRenderer) {
+    const total = daysInMonth(ym);
+    const [y,m] = ym.split('-').map(Number);
+    const first = new Date(y, m-1, 1, 12);
+    const offset = (first.getDay() + 6) % 7;
+    const names = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+    let html = names.map(n=>`<div class="calendar-weekday">${n}</div>`).join('');
+    html += Array.from({length:offset},()=>'<div class="calendar-day empty-day"></div>').join('');
+    for (let day=1; day<=total; day++) {
+      const iso = `${ym}-${String(day).padStart(2,'0')}`;
+      html += dayRenderer(day, iso);
+    }
+    return html;
+  }
+
+  function renderBooks() {
+    const reading = state.books.filter(b=>b.status==='reading');
+    const year = todayISO().slice(0,4);
+    const currentYM = currentMonthISO();
+    const finishedYear = state.books.filter(b=>b.status==='finished' && (b.finished_on || '').startsWith(year)).length;
+    const monthLogs = state.readingLogs.filter(l=>isInMonth(l.read_on,currentYM));
+    const monthPages = monthLogs.reduce((s,l)=>s+num(l.pages_read),0);
+    const monthMinutes = monthLogs.reduce((s,l)=>s+num(l.minutes),0);
+
+    $('#booksReadingCount').textContent = reading.length;
+    $('#booksFinishedYear').textContent = finishedYear;
+    $('#booksGoalHint').textContent = `цель — ${num(state.settings.yearly_book_goal || 24)}`;
+    $('#readingStreak').textContent = readingStreakDays();
+    $('#readingMonthPages').textContent = `${monthPages} стр.`;
+    $('#readingMonthMinutes').textContent = `${monthMinutes} мин.`;
+    const todayMinutes=state.readingLogs.filter(l=>l.read_on===todayISO()).reduce((s,l)=>s+num(l.minutes),0);
+    const dailyGoal=num(state.settings.daily_reading_goal_minutes||20);
+    $('#readingTodayGoal').textContent=`Сегодня: ${todayMinutes} из ${dailyGoal} мин. · ${todayMinutes>=dailyGoal?'цель выполнена ✓':`осталось ${Math.max(0,dailyGoal-todayMinutes)} мин.`}`;
+
+    const currentBox = $('#currentBooks');
+    currentBox.innerHTML = reading.length ? reading.map(b=>{
+      const total=num(b.total_pages), current=num(b.current_page);
+      const pct=total ? clamp(current/total*100,0,100) : 0;
+      return `<div class="current-book-row">
+        <div class="current-book-cover">${smallCoverHTML(b.cover_url)}</div>
+        <div class="current-book-info"><strong>${esc(b.title)}</strong><small>${esc(b.author||'Автор не указан')} · ${total ? `${current} / ${total} стр.` : `стр. ${current}`}</small><div class="progress"><span style="width:${pct}%"></span></div></div>
+        <button class="btn primary small book-log" data-id="${b.id}">Записать чтение</button>
+      </div>`;
+    }).join('') : '<div class="empty">Сейчас нет активной книги. Добавьте книгу со статусом «Читаю».</div>';
+
+    const q = ($('#bookSearch')?.value || '').trim().toLowerCase();
+    const status = $('#bookStatusFilter')?.value || 'all';
+    const filtered = state.books.filter(b => {
+      const statusMatch = status==='all' || (status==='owned' ? b.owned : status==='favorite' ? b.favorite : b.status===status);
+      return statusMatch && (!q || `${b.title} ${b.author||''}`.toLowerCase().includes(q));
+    });
+    const lib = $('#booksLibrary');
+    lib.innerHTML = filtered.length ? filtered.map(b=>{
+      const total=num(b.total_pages), current=num(b.current_page);
+      const pct=total ? clamp(current/total*100,0,100) : 0;
+      const quick = b.status==='reading'
+        ? `<button class="btn primary book-log" data-id="${b.id}">+ Чтение</button>`
+        : b.status==='wishlist'
+          ? `<button class="btn secondary book-start" data-id="${b.id}">Начать</button>`
+          : '';
+      return `<article class="library-card">
+        ${b.favorite ? '<div class="favorite-mark">❤️</div>' : ''}
+        ${coverHTML(b.cover_url,'📖',b.title)}
+        <div class="library-card-body">
+          <span class="status-pill ${b.status}">${bookStatusLabels[b.status] || b.status}</span>
+          <div class="library-card-title">${esc(b.title)}</div>
+          <div class="library-card-subtitle">${esc(b.author||'Автор не указан')}</div>
+          ${total ? `<div class="progress"><span style="width:${pct}%"></span></div><div class="library-card-meta"><span>${current}/${total} стр.</span><strong>${Math.round(pct)}%</strong></div>` : `<div class="library-card-meta"><span>стр. ${current}</span><span>${b.owned?'📚 Куплена':''}</span></div>`}
+          <div class="star-line">${stars(b.rating)}</div>
+          <div class="library-card-actions">${quick}<button class="btn ghost book-edit" data-id="${b.id}">Изменить</button></div>
+        </div>
+      </article>`;
+    }).join('') : '<div class="empty">По выбранному фильтру книг пока нет.</div>';
+
+    $$('.book-edit').forEach(b=>b.onclick=()=>openBookEdit(b.dataset.id));
+    $$('.book-log').forEach(b=>b.onclick=()=>openReading(b.dataset.id));
+    $$('.book-start').forEach(b=>b.onclick=async()=>{
+      const book=state.books.find(x=>x.id===b.dataset.id);
+      if (!book) return;
+      const {error}=await sb.from('pf_books').update({status:'reading',started_on:book.started_on||todayISO()}).eq('id',book.id);
+      if (error) toast('Не удалось начать книгу','error'); else toast('Книга перенесена в «Читаю»');
+      await loadAll({silent:true});
+    });
+
+    renderReadingCalendar();
+    renderReadingJournal();
+    renderReadingTimerOptions();
+  }
+
+  function renderReadingCalendar() {
+    const ym = $('#readingMonth')?.value || currentMonthISO();
+    if ($('#readingMonth') && !$('#readingMonth').value) $('#readingMonth').value=ym;
+    const byDay = new Map();
+    state.readingLogs.filter(l=>isInMonth(l.read_on,ym)).forEach(l=>{
+      const old=byDay.get(l.read_on)||{pages:0,minutes:0};
+      old.pages+=num(l.pages_read); old.minutes+=num(l.minutes);
+      byDay.set(l.read_on,old);
+    });
+    const maxPages=Math.max(1,...[...byDay.values()].map(x=>x.pages));
+    $('#readingCalendar').innerHTML=calendarHTML(ym,(day,iso)=>{
+      const d=byDay.get(iso);
+      if (!d) return `<div class="calendar-day"><span class="day-num">${day}</span></div>`;
+      const level=Math.max(1,Math.ceil(d.pages/maxPages*4));
+      return `<div class="calendar-day read-${level}"><span class="day-num">${day}</span><span class="calendar-value">${d.pages} стр.</span><small>${d.minutes} мин.</small></div>`;
+    });
+  }
+
+  function renderReadingJournal() {
+    const box=$('#readingJournal');
+    const rows=state.readingLogs.slice(0,30);
+    box.innerHTML=rows.length ? rows.map(l=>`<div class="journal-entry">
+      <div class="journal-entry-head"><strong>${esc(l.pf_books?.title||'Книга')}</strong><small>${prettyDate(l.read_on)}</small></div>
+      <small>+${num(l.pages_read)} стр. · ${num(l.minutes)} мин. · до стр. ${num(l.page_after)}</small>
+      ${l.note ? `<p>${esc(l.note)}</p>` : ''}
+    </div>`).join('') : '<div class="empty">Записей чтения пока нет.</div>';
+  }
+
+  function openBookNew() {
+    $('#bookDialogTitle').textContent='Добавить книгу';
+    $('#bookId').value='';
+    $('#bookTitle').value='';
+    $('#bookAuthor').value='';
+    $('#bookStatus').value='wishlist';
+    $('#bookCover').value='';
+    $('#bookTotalPages').value='';
+    $('#bookCurrentPage').value='0';
+    $('#bookRating').value='0';
+    $('#bookStartedOn').value='';
+    $('#bookFinishedOn').value='';
+    $('#bookFavorite').checked=false;
+    $('#bookOwned').checked=false;
+    $('#bookNotes').value='';
+    $('#deleteBookBtn').classList.add('hidden');
+    $('#bookDialog').showModal();
+  }
+
+  function openBookEdit(id) {
+    const b=state.books.find(x=>x.id===id); if (!b) return;
+    $('#bookDialogTitle').textContent='Редактировать книгу';
+    $('#bookId').value=b.id;
+    $('#bookTitle').value=b.title||'';
+    $('#bookAuthor').value=b.author||'';
+    $('#bookStatus').value=b.status||'wishlist';
+    $('#bookCover').value=b.cover_url||'';
+    $('#bookTotalPages').value=num(b.total_pages);
+    $('#bookCurrentPage').value=num(b.current_page);
+    $('#bookRating').value=num(b.rating);
+    $('#bookStartedOn').value=b.started_on||'';
+    $('#bookFinishedOn').value=b.finished_on||'';
+    $('#bookFavorite').checked=!!b.favorite;
+    $('#bookOwned').checked=!!b.owned;
+    $('#bookNotes').value=b.notes||'';
+    $('#deleteBookBtn').classList.remove('hidden');
+    $('#bookDialog').showModal();
+  }
+
+  function openReading(id, minutes=0) {
+    const b=state.books.find(x=>x.id===id); if (!b) return;
+    $('#readingBookId').value=b.id;
+    $('#readingBookLabel').textContent=`${b.title} · сейчас стр. ${num(b.current_page)}${num(b.total_pages)?` из ${num(b.total_pages)}`:''}`;
+    $('#readingNewPage').value=num(b.current_page);
+    $('#readingNewPage').max=num(b.total_pages)>0?num(b.total_pages):'';
+    $('#readingMinutes').value=Math.max(0,Math.round(minutes));
+    $('#readingDate').value=todayISO();
+    $('#readingNote').value='';
+    $('#readingDialog').showModal();
+  }
+
+  function restoreReadingTimer() {
+    try {
+      const raw=localStorage.getItem('pf_reading_timer_v1');
+      if (raw) {
+        const data=JSON.parse(raw);
+        readingTimer={...readingTimer,...data, tick:null, loaded:true};
+      } else readingTimer.loaded=true;
+    } catch { readingTimer.loaded=true; }
+    if (readingTimer.running && readingTimer.startedAt) startTimerTick();
+  }
+
+  function saveReadingTimer() {
+    localStorage.setItem('pf_reading_timer_v1',JSON.stringify({
+      running:readingTimer.running,startedAt:readingTimer.startedAt,accumulated:readingTimer.accumulated,bookId:readingTimer.bookId
+    }));
+  }
+
+  function timerElapsedMs() {
+    return num(readingTimer.accumulated)+(readingTimer.running && readingTimer.startedAt ? Date.now()-readingTimer.startedAt : 0);
+  }
+
+  function formatTimer(ms) {
+    const sec=Math.max(0,Math.floor(ms/1000));
+    const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+    return [h,m,s].map(x=>String(x).padStart(2,'0')).join(':');
+  }
+
+  function startTimerTick() {
+    clearInterval(readingTimer.tick);
+    readingTimer.tick=setInterval(updateReadingTimerUI,1000);
+  }
+
+  function updateReadingTimerUI() {
+    const display=$('#readingTimerDisplay'); if (!display) return;
+    display.textContent=formatTimer(timerElapsedMs());
+    const toggle=$('#readingTimerToggle');
+    if (toggle) toggle.textContent=readingTimer.running?'⏸ Пауза':'▶ Начать';
+    const select=$('#readingTimerBook');
+    if (select) select.disabled=readingTimer.running;
+    const finish=$('#readingTimerFinish');
+    if (finish) finish.disabled=!readingTimer.bookId || timerElapsedMs()<=0;
+  }
+
+  function renderReadingTimerOptions() {
+    if (!readingTimer.loaded) restoreReadingTimer();
+    const select=$('#readingTimerBook'); if (!select) return;
+    const reading=state.books.filter(b=>b.status==='reading');
+    const preferred=reading.some(b=>b.id===readingTimer.bookId)?readingTimer.bookId:(reading[0]?.id||'');
+    if (!readingTimer.running) readingTimer.bookId=preferred;
+    select.innerHTML=reading.length?reading.map(b=>`<option value="${b.id}" ${b.id===readingTimer.bookId?'selected':''}>${esc(b.title)}</option>`).join(''):'<option value="">Нет активных книг</option>';
+    $('#readingTimerToggle').disabled=!reading.length;
+    $('#readingTimerFinish').disabled=!reading.length || timerElapsedMs()<=0;
+    updateReadingTimerUI();
+  }
+
+  function resetReadingTimer() {
+    readingTimer.running=false; readingTimer.startedAt=null; readingTimer.accumulated=0;
+    clearInterval(readingTimer.tick); readingTimer.tick=null;
+    saveReadingTimer(); updateReadingTimerUI();
+    if ($('#readingTimerFinish')) $('#readingTimerFinish').disabled=true;
+  }
+
+  // ===== Фильмы и сериалы =====
+  function mediaProgressText(m) {
+    if (m.media_type!=='series') return m.watched_on ? `Просмотрено ${prettyDate(m.watched_on)}` : '';
+    if (num(m.episodes_total)>0) return `${num(m.episode_current)} / ${num(m.episodes_total)} серий`;
+    if (num(m.seasons_total)>0) return `${num(m.season_current)} / ${num(m.seasons_total)} сезонов`;
+    return num(m.season_current)>0 ? `Сезон ${num(m.season_current)}` : '';
+  }
+
+  function renderMedia() {
+    const year=todayISO().slice(0,4);
+    const wishlist=state.media.filter(m=>m.status==='wishlist');
+    const watching=state.media.filter(m=>m.status==='watching');
+    const watchedYear=state.media.filter(m=>m.status==='watched' && (m.watched_on||'').startsWith(year));
+    const rated=state.media.filter(m=>num(m.rating)>0);
+    const avg=rated.length?rated.reduce((s,m)=>s+num(m.rating),0)/rated.length:0;
+    $('#mediaWishlistCount').textContent=wishlist.length;
+    $('#mediaWatchingCount').textContent=watching.length;
+    $('#mediaWatchedYear').textContent=watchedYear.length;
+    $('#mediaAverageRating').textContent=rated.length?avg.toFixed(1).replace('.',','):'—';
+
+    const q=($('#mediaSearch')?.value||'').trim().toLowerCase();
+    const type=$('#mediaTypeFilter')?.value||'all';
+    const status=$('#mediaStatusFilter')?.value||'all';
+    const filtered=state.media.filter(m=>(type==='all'||m.media_type===type)&&(status==='all'||m.status===status)&&(!q||m.title.toLowerCase().includes(q)));
+    $('#mediaLibrary').innerHTML=filtered.length?filtered.map(m=>{
+      const progress=mediaProgressText(m);
+      return `<article class="library-card">
+        ${m.favorite?'<div class="favorite-mark">❤️</div>':''}
+        ${coverHTML(m.cover_url,m.media_type==='series'?'📺':'🎬',m.title)}
+        <div class="library-card-body">
+          <span class="status-pill ${m.status}">${mediaStatusLabels[m.status]||m.status}</span>
+          <div class="library-card-title">${esc(m.title)}</div>
+          <div class="library-card-subtitle">${mediaTypeLabels[m.media_type]||m.media_type}${m.release_year?` · ${m.release_year}`:''}</div>
+          <div class="library-card-meta"><span>${esc(progress||'')}</span><strong>${num(m.rating)>0?`${num(m.rating).toFixed(1).replace('.',',')}/10`:''}</strong></div>
+          <div class="library-card-actions"><button class="btn ghost media-edit" data-id="${m.id}">Изменить</button></div>
+        </div>
+      </article>`;
+    }).join(''):'<div class="empty">По выбранному фильтру ничего нет.</div>';
+    $$('.media-edit').forEach(b=>b.onclick=()=>openMediaEdit(b.dataset.id));
+  }
+
+  function openMediaNew() {
+    $('#mediaDialogTitle').textContent='Добавить фильм или сериал';
+    $('#mediaId').value=''; $('#mediaTitle').value=''; $('#mediaType').value='movie'; $('#mediaStatus').value='wishlist';
+    $('#mediaYear').value=''; $('#mediaCover').value=''; $('#mediaRating').value='0';
+    $('#mediaSeasonCurrent').value='0'; $('#mediaSeasonsTotal').value='0'; $('#mediaEpisodeCurrent').value='0'; $('#mediaEpisodesTotal').value='0';
+    $('#mediaWatchedOn').value=''; $('#mediaFavorite').checked=false; $('#mediaNotes').value='';
+    $('#deleteMediaBtn').classList.add('hidden'); toggleMediaSeriesFields(); $('#mediaDialog').showModal();
+  }
+
+  function openMediaEdit(id) {
+    const m=state.media.find(x=>x.id===id); if (!m) return;
+    $('#mediaDialogTitle').textContent='Редактировать';
+    $('#mediaId').value=m.id; $('#mediaTitle').value=m.title||''; $('#mediaType').value=m.media_type||'movie'; $('#mediaStatus').value=m.status||'wishlist';
+    $('#mediaYear').value=m.release_year||''; $('#mediaCover').value=m.cover_url||''; $('#mediaRating').value=num(m.rating);
+    $('#mediaSeasonCurrent').value=num(m.season_current); $('#mediaSeasonsTotal').value=num(m.seasons_total); $('#mediaEpisodeCurrent').value=num(m.episode_current); $('#mediaEpisodesTotal').value=num(m.episodes_total);
+    $('#mediaWatchedOn').value=m.watched_on||''; $('#mediaFavorite').checked=!!m.favorite; $('#mediaNotes').value=m.notes||'';
+    $('#deleteMediaBtn').classList.remove('hidden'); toggleMediaSeriesFields(); $('#mediaDialog').showModal();
+  }
+
+  function toggleMediaSeriesFields() {
+    const show=$('#mediaType')?.value==='series';
+    $$('.series-only').forEach(el=>el.classList.toggle('hidden',!show));
+  }
+
+  function pickRandomMedia(target='#randomMediaResult') {
+    const items=state.media.filter(m=>m.status==='wishlist');
+    const box=$(target); if (!box) return;
+    if (!items.length) { box.innerHTML='Добавьте что-нибудь в «Хочу посмотреть».'; return; }
+    const m=items[Math.floor(Math.random()*items.length)];
+    box.innerHTML=`<div class="random-cover">${smallCoverHTML(m.cover_url,m.media_type==='series'?'📺':'🎬')}</div><div><strong>${esc(m.title)}</strong><div class="muted">${mediaTypeLabels[m.media_type]}${m.release_year?` · ${m.release_year}`:''}</div></div><button class="btn secondary small random-open" data-id="${m.id}">Открыть</button>`;
+    box.querySelector('.random-open')?.addEventListener('click',()=>openMediaEdit(m.id));
+  }
+
+  // ===== Настроение =====
+  function renderMood() {
+    const ym=$('#moodMonth')?.value||currentMonthISO();
+    if ($('#moodMonth')&&!$('#moodMonth').value) $('#moodMonth').value=ym;
+    const rows=state.moods.filter(x=>isInMonth(x.day,ym));
+    const avg=rows.length?rows.reduce((s,x)=>s+num(x.mood),0)/rows.length:0;
+    const counts={}; rows.forEach(x=>counts[x.mood]=(counts[x.mood]||0)+1);
+    const common=Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];
+    const today=state.moods.find(x=>x.day===todayISO());
+    $('#moodAverage').textContent=rows.length?`${moodMeta[Math.round(avg)]?.emoji||''} ${avg.toFixed(1).replace('.',',')}`:'—';
+    $('#moodDaysCount').textContent=rows.length;
+    $('#moodMostCommon').textContent=common?`${moodMeta[common].emoji} ${moodMeta[common].label}`:'—';
+    $('#moodTodayValue').textContent=today?`${moodMeta[today.mood].emoji} ${moodMeta[today.mood].label}`:'—';
+
+    const map=new Map(rows.map(x=>[x.day,x]));
+    $('#moodCalendar').innerHTML=calendarHTML(ym,(day,iso)=>{
+      const r=map.get(iso);
+      return `<button class="calendar-day mood-day" data-day="${iso}"><span class="day-num">${day}</span>${r?`<span class="mood-emoji">${moodMeta[r.mood].emoji}</span><small>${esc((r.note||'').slice(0,18))}</small>`:'<span class="mood-emoji">·</span>'}</button>`;
+    });
+    $$('.mood-day').forEach(b=>b.onclick=()=>openMood(b.dataset.day));
+
+    $('#moodHistory').innerHTML=state.moods.slice(0,30).map(r=>`<div class="journal-entry"><div class="journal-entry-head"><strong>${moodMeta[r.mood].emoji} ${moodMeta[r.mood].label}</strong><small>${prettyDate(r.day)}</small></div>${r.note?`<p>${esc(r.note)}</p>`:''}</div>`).join('')||'<div class="empty">Записей пока нет.</div>';
+  }
+
+  function selectMood(value) {
+    $('#moodValue').value=String(value);
+    $$('[data-mood]').forEach(b=>b.classList.toggle('selected',num(b.dataset.mood)===num(value)));
+  }
+
+  function openMood(day) {
+    const r=state.moods.find(x=>x.day===day);
+    $('#moodDate').value=day;
+    $('#moodNote').value=r?.note||'';
+    selectMood(r?.mood||3);
+    $('#moodDialog').showModal();
+  }
+
+  // ===== Сон =====
+  function sleepDurationMinutes(bed,wake) {
+    if (!bed||!wake) return 0;
+    const [bh,bm]=bed.split(':').map(Number), [wh,wm]=wake.split(':').map(Number);
+    let start=bh*60+bm, end=wh*60+wm;
+    if (end<=start) end+=1440;
+    return clamp(end-start,0,1440);
+  }
+
+  function formatSleepMinutes(mins) {
+    const h=Math.floor(num(mins)/60), m=num(mins)%60;
+    return `${h} ч ${m?`${m} мин`:' '}`.trim();
+  }
+
+  function renderSleep() {
+    const ym=$('#sleepMonth')?.value||currentMonthISO();
+    if ($('#sleepMonth')&&!$('#sleepMonth').value) $('#sleepMonth').value=ym;
+    const rows=state.sleep.filter(x=>isInMonth(x.day,ym));
+    const avgMinutes=rows.length?rows.reduce((s,x)=>s+num(x.duration_minutes),0)/rows.length:0;
+    const avgQuality=rows.length?rows.reduce((s,x)=>s+num(x.quality),0)/rows.length:0;
+    const goal=num(state.settings.sleep_goal_hours||8);
+    $('#sleepAverageHours').textContent=rows.length?`${(avgMinutes/60).toFixed(1).replace('.',',')} ч`:'—';
+    $('#sleepAverageQuality').textContent=rows.length?`${avgQuality.toFixed(1).replace('.',',')} / 5`:'—';
+    $('#sleepNightsCount').textContent=rows.length;
+    $('#sleepGoalLabel').textContent=`${String(goal).replace('.',',')} ч`;
+    const map=new Map(rows.map(x=>[x.day,x]));
+    $('#sleepCalendar').innerHTML=calendarHTML(ym,(day,iso)=>{
+      const r=map.get(iso);
+      if (!r) return `<button class="calendar-day sleep-day" data-day="${iso}"><span class="day-num">${day}</span></button>`;
+      const pct=clamp(num(r.duration_minutes)/(goal*60)*100,0,100);
+      return `<button class="calendar-day sleep-day" data-day="${iso}"><span class="day-num">${day}</span><span class="sleep-hours">${(num(r.duration_minutes)/60).toFixed(1).replace('.',',')} ч</span><span class="sleep-quality">${'★'.repeat(num(r.quality))}</span><div class="sleep-bar"><span style="width:${pct}%"></span></div></button>`;
+    });
+    $$('.sleep-day').forEach(b=>b.onclick=()=>openSleep(b.dataset.day));
+
+    $('#sleepHistory').innerHTML=state.sleep.length?`<table><thead><tr><th>Дата</th><th>Сон</th><th>Длительность</th><th>Качество</th><th>Заметка</th><th></th></tr></thead><tbody>${state.sleep.slice(0,60).map(r=>`<tr><td>${prettyDate(r.day)}</td><td>${String(r.bed_time).slice(0,5)} → ${String(r.wake_time).slice(0,5)}</td><td>${formatSleepMinutes(r.duration_minutes)}</td><td>${'★'.repeat(num(r.quality))}</td><td>${esc(r.note||'—')}</td><td><button class="text-btn sleep-edit" data-day="${r.day}">Изменить</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">Записей сна пока нет.</div>';
+    $$('.sleep-edit').forEach(b=>b.onclick=()=>openSleep(b.dataset.day));
+  }
+
+  function updateSleepPreview() {
+    const mins=sleepDurationMinutes($('#sleepBedTime')?.value,$('#sleepWakeTime')?.value);
+    if ($('#sleepDurationPreview')) $('#sleepDurationPreview').textContent=mins?`Длительность: ${formatSleepMinutes(mins)}.`:'Укажите время сна и пробуждения.';
+  }
+
+  function openSleep(day) {
+    const r=state.sleep.find(x=>x.day===day);
+    $('#sleepDate').value=day;
+    $('#sleepBedTime').value=r?String(r.bed_time).slice(0,5):'23:30';
+    $('#sleepWakeTime').value=r?String(r.wake_time).slice(0,5):'07:30';
+    $('#sleepQuality').value=r?.quality||3;
+    $('#sleepNote').value=r?.note||'';
+    updateSleepPreview();
+    $('#sleepDialog').showModal();
+  }
+
+  function renderLifeDashboard() {
+    const reading=state.books.filter(b=>b.status==='reading');
+    $('#dashboardReading').innerHTML=reading.length?reading.slice(0,2).map(b=>{
+      const pct=num(b.total_pages)?clamp(num(b.current_page)/num(b.total_pages)*100,0,100):0;
+      return `<div class="dashboard-life-row"><strong>${esc(b.title)}</strong><small>${num(b.total_pages)?`${num(b.current_page)} / ${num(b.total_pages)} стр.`:`стр. ${num(b.current_page)}`}</small><div class="progress"><span style="width:${pct}%"></span></div></div>`;
+    }).join(''):'<div class="empty">Нет книги в процессе.</div>';
+
+    const wish=state.media.filter(m=>m.status==='wishlist');
+    if (wish.length) {
+      const seed=todayISO().split('').reduce((s,c)=>s+c.charCodeAt(0),0);
+      const m=wish[seed%wish.length];
+      $('#dashboardRandomMedia').innerHTML=`<div class="dashboard-life-row"><strong>${esc(m.title)}</strong><small>${mediaTypeLabels[m.media_type]} · вариантов в желаниях: ${wish.length}</small></div>`;
+    } else $('#dashboardRandomMedia').innerHTML='<div class="empty">Список желаний пока пуст.</div>';
+
+    const mood=state.moods.find(x=>x.day===todayISO());
+    $('#dashboardMood').innerHTML=mood?`<div class="dashboard-life-row"><strong>${moodMeta[mood.mood].emoji} ${moodMeta[mood.mood].label}</strong><small>${esc(mood.note||'Сегодня отмечено')}</small></div>`:'<div class="empty">Сегодня настроение ещё не отмечено.</div>';
+
+    const sleep=state.sleep[0];
+    $('#dashboardSleep').innerHTML=sleep?`<div class="dashboard-life-row"><strong>${formatSleepMinutes(sleep.duration_minutes)}</strong><small>${prettyDate(sleep.day)} · качество ${num(sleep.quality)}/5</small></div>`:'<div class="empty">Сон пока не записывали.</div>';
+  }
+
   async function toggleHabitDay(habitId, day) {
     const existing = state.habitLogs.find(l=>l.habit_id===habitId && l.day===day);
     setSync('Сохранение…', true);
@@ -471,6 +963,62 @@
     $('#taskDate').addEventListener('change', renderTasks);
     $('#addHabitBtn').onclick = ()=>{ $('#habitName').value=''; $('#habitDialog').showModal(); };
     $('#addDebtBtn').onclick = openDebtNew;
+
+    // Книги
+    $('#addBookBtn').onclick = openBookNew;
+    $('#bookSearch').addEventListener('input', renderBooks);
+    $('#bookStatusFilter').addEventListener('change', renderBooks);
+    $('#readingMonth').addEventListener('change', renderReadingCalendar);
+    $('#readingTimerBook').addEventListener('change', e => { if (!readingTimer.running) { readingTimer.bookId=e.target.value||null; saveReadingTimer(); } });
+    $('#readingTimerToggle').onclick = () => {
+      if (readingTimer.running) {
+        readingTimer.accumulated=timerElapsedMs();
+        readingTimer.running=false;
+        readingTimer.startedAt=null;
+        clearInterval(readingTimer.tick); readingTimer.tick=null;
+      } else {
+        const id=$('#readingTimerBook').value;
+        if (!id) return;
+        readingTimer.bookId=id;
+        readingTimer.running=true;
+        readingTimer.startedAt=Date.now();
+        startTimerTick();
+      }
+      saveReadingTimer(); updateReadingTimerUI();
+      $('#readingTimerFinish').disabled=timerElapsedMs()<=0;
+    };
+    $('#readingTimerFinish').onclick = () => {
+      const id=readingTimer.bookId||$('#readingTimerBook').value;
+      if (!id) return;
+      if (readingTimer.running) {
+        readingTimer.accumulated=timerElapsedMs();
+        readingTimer.running=false; readingTimer.startedAt=null;
+        clearInterval(readingTimer.tick); readingTimer.tick=null;
+        saveReadingTimer(); updateReadingTimerUI();
+      }
+      const mins=timerElapsedMs()>0?Math.max(1,Math.round(timerElapsedMs()/60000)):0;
+      openReading(id,mins);
+    };
+    $('#readingTimerReset').onclick = () => { if (timerElapsedMs()>0 && !confirm('Сбросить таймер чтения?')) return; resetReadingTimer(); };
+
+    // Фильмы и сериалы
+    $('#addMediaBtn').onclick = openMediaNew;
+    $('#mediaType').addEventListener('change', toggleMediaSeriesFields);
+    $('#mediaSearch').addEventListener('input', renderMedia);
+    $('#mediaTypeFilter').addEventListener('change', renderMedia);
+    $('#mediaStatusFilter').addEventListener('change', renderMedia);
+    $('#randomMediaBtn').onclick = () => pickRandomMedia();
+
+    // Настроение
+    $('#moodMonth').addEventListener('change', renderMood);
+    $('#moodTodayBtn').onclick = () => openMood(todayISO());
+    $$('[data-mood]').forEach(b=>b.addEventListener('click',()=>selectMood(b.dataset.mood)));
+
+    // Сон
+    $('#sleepMonth').addEventListener('change', renderSleep);
+    $('#sleepTodayBtn').onclick = () => openSleep(todayISO());
+    $('#sleepBedTime').addEventListener('input', updateSleepPreview);
+    $('#sleepWakeTime').addEventListener('input', updateSleepPreview);
     $$('.dialog-close').forEach(b => b.onclick = () => { const d = document.getElementById(b.dataset.dialog); if (d?.open) d.close(); });
 
     $('#authModeToggle').onclick = () => {
@@ -536,7 +1084,14 @@
     $('#settingsForm').addEventListener('submit', async e => {
       e.preventDefault();
       const amount = num($('#monthlyIncomeTarget').value);
-      const {error} = await sb.from('pf_settings').upsert({user_id:user.id, monthly_income_target:amount},{onConflict:'user_id'});
+      const payload = {
+        user_id:user.id,
+        monthly_income_target:amount,
+        yearly_book_goal:num($('#yearlyBookGoal').value || 24),
+        daily_reading_goal_minutes:num($('#dailyReadingGoal').value || 20),
+        sleep_goal_hours:num($('#sleepGoalHours').value || 8)
+      };
+      const {error} = await sb.from('pf_settings').upsert(payload,{onConflict:'user_id'});
       if (error) toast('Не удалось сохранить настройки','error'); else toast('Настройки сохранены');
       await loadAll({silent:true});
     });
@@ -555,6 +1110,111 @@
       if (!name) return;
       const {error} = await sb.from('pf_habits').upsert({user_id:user.id,name,active:true},{onConflict:'user_id,name'});
       if (error) toast('Не удалось добавить привычку','error'); else { toast('Привычка добавлена'); $('#habitDialog').close(); }
+      await loadAll({silent:true});
+    });
+
+    $('#bookForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const id=$('#bookId').value;
+      let total=Math.max(0,Math.round(num($('#bookTotalPages').value)));
+      let current=Math.max(0,Math.round(num($('#bookCurrentPage').value)));
+      if (total>0 && current>total) { toast('Текущая страница не может быть больше общего числа страниц','error'); return; }
+      const status=$('#bookStatus').value;
+      if (status==='finished' && total>0) current=total;
+      const payload={
+        title:$('#bookTitle').value.trim(),
+        author:$('#bookAuthor').value.trim()||null,
+        status,
+        cover_url:$('#bookCover').value.trim()||null,
+        total_pages:total,
+        current_page:current,
+        rating:num($('#bookRating').value),
+        favorite:$('#bookFavorite').checked,
+        owned:$('#bookOwned').checked,
+        started_on:$('#bookStartedOn').value||((status==='reading'||status==='finished')?todayISO():null),
+        finished_on:$('#bookFinishedOn').value||(status==='finished'?todayISO():null),
+        notes:$('#bookNotes').value.trim()||null
+      };
+      const result=id?await sb.from('pf_books').update(payload).eq('id',id):await sb.from('pf_books').insert({...payload,user_id:user.id});
+      if (result.error) { console.error(result.error); toast('Не удалось сохранить книгу','error'); }
+      else { toast(id?'Книга обновлена':'Книга добавлена'); $('#bookDialog').close(); }
+      await loadAll({silent:true});
+    });
+
+    $('#deleteBookBtn').onclick = async () => {
+      const id=$('#bookId').value; if (!id || !confirm('Удалить книгу и весь дневник чтения по ней?')) return;
+      const {error}=await sb.from('pf_books').delete().eq('id',id);
+      if (error) toast('Не удалось удалить книгу','error'); else { toast('Книга удалена'); $('#bookDialog').close(); }
+      if (readingTimer.bookId===id) resetReadingTimer();
+      await loadAll({silent:true});
+    };
+
+    $('#readingForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const id=$('#readingBookId').value;
+      const {error}=await sb.rpc('pf_record_reading_session',{
+        p_book_id:id,
+        p_new_page:Math.round(num($('#readingNewPage').value)),
+        p_minutes:Math.round(num($('#readingMinutes').value)),
+        p_read_on:$('#readingDate').value,
+        p_note:$('#readingNote').value.trim()||null
+      });
+      if (error) { console.error(error); toast(error.message||'Не удалось записать чтение','error'); }
+      else { toast('Чтение записано'); $('#readingDialog').close(); if (readingTimer.bookId===id && timerElapsedMs()>0) resetReadingTimer(); }
+      await loadAll({silent:true});
+    });
+
+    $('#mediaForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const id=$('#mediaId').value;
+      const type=$('#mediaType').value, status=$('#mediaStatus').value;
+      const payload={
+        title:$('#mediaTitle').value.trim(),
+        media_type:type,
+        status,
+        cover_url:$('#mediaCover').value.trim()||null,
+        release_year:$('#mediaYear').value?Math.round(num($('#mediaYear').value)):null,
+        rating:num($('#mediaRating').value),
+        favorite:$('#mediaFavorite').checked,
+        season_current:type==='series'?Math.round(num($('#mediaSeasonCurrent').value)):0,
+        seasons_total:type==='series'?Math.round(num($('#mediaSeasonsTotal').value)):0,
+        episode_current:type==='series'?Math.round(num($('#mediaEpisodeCurrent').value)):0,
+        episodes_total:type==='series'?Math.round(num($('#mediaEpisodesTotal').value)):0,
+        watched_on:$('#mediaWatchedOn').value||(status==='watched'?todayISO():null),
+        notes:$('#mediaNotes').value.trim()||null
+      };
+      const result=id?await sb.from('pf_media').update(payload).eq('id',id):await sb.from('pf_media').insert({...payload,user_id:user.id});
+      if (result.error) { console.error(result.error); toast('Не удалось сохранить','error'); }
+      else { toast(id?'Запись обновлена':'Добавлено'); $('#mediaDialog').close(); }
+      await loadAll({silent:true});
+    });
+
+    $('#deleteMediaBtn').onclick = async () => {
+      const id=$('#mediaId').value; if (!id || !confirm('Удалить фильм или сериал?')) return;
+      const {error}=await sb.from('pf_media').delete().eq('id',id);
+      if (error) toast('Не удалось удалить','error'); else { toast('Удалено'); $('#mediaDialog').close(); }
+      await loadAll({silent:true});
+    };
+
+    $('#moodForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const mood=num($('#moodValue').value); if (!mood) { toast('Выберите настроение','error'); return; }
+      const payload={user_id:user.id,day:$('#moodDate').value,mood,note:$('#moodNote').value.trim()||null};
+      const {error}=await sb.from('pf_moods').upsert(payload,{onConflict:'user_id,day'});
+      if (error) { console.error(error); toast('Не удалось сохранить настроение','error'); }
+      else { toast('Настроение сохранено'); $('#moodDialog').close(); }
+      await loadAll({silent:true});
+    });
+
+    $('#sleepForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const bed=$('#sleepBedTime').value, wake=$('#sleepWakeTime').value;
+      const duration=sleepDurationMinutes(bed,wake);
+      if (!duration) { toast('Проверьте время сна','error'); return; }
+      const payload={user_id:user.id,day:$('#sleepDate').value,bed_time:bed,wake_time:wake,duration_minutes:duration,quality:num($('#sleepQuality').value),note:$('#sleepNote').value.trim()||null};
+      const {error}=await sb.from('pf_sleep').upsert(payload,{onConflict:'user_id,day'});
+      if (error) { console.error(error); toast('Не удалось сохранить сон','error'); }
+      else { toast('Сон сохранён'); $('#sleepDialog').close(); }
       await loadAll({silent:true});
     });
 
@@ -601,6 +1261,12 @@
     $('#expenseDate').value = todayISO();
     $('#taskDate').value = todayISO();
     $('#habitMonth').value = currentMonthISO();
+    $('#readingMonth').value = currentMonthISO();
+    $('#moodMonth').value = currentMonthISO();
+    $('#sleepMonth').value = currentMonthISO();
+    $('#readingDate').value = todayISO();
+    $('#moodDate').value = todayISO();
+    $('#sleepDate').value = todayISO();
     $('#paymentDate').value = todayISO();
     setSync('Подготовка…', true);
     await ensureDefaults();

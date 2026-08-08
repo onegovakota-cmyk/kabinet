@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#6f5cff" />
-  <meta name="description" content="Личный кабинет: долги, доходы, расходы, привычки и задачи" />
+  <meta name="description" content="Личный кабинет: финансы, книги, кино, настроение, сон, привычки и задачи" />
   <title>Мой личный кабинет</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -17,7 +17,7 @@
     <div class="auth-card">
       <div class="brand-mark">ЛК</div>
       <h1>Мой личный кабинет</h1>
-      <p class="muted">Финансы, долги, привычки и задачи в одном месте.</p>
+      <p class="muted">Финансы, книги, кино, настроение, сон, привычки и задачи в одном месте.</p>
 
       <form id="authForm" class="stack gap-md">
         <label class="field">
@@ -41,7 +41,7 @@
     <aside class="sidebar">
       <div class="sidebar-brand">
         <div class="brand-mark small">ЛК</div>
-        <div><strong>Мой кабинет</strong><span>финансы & план</span></div>
+        <div><strong>Мой кабинет</strong><span>всё важное в одном месте</span></div>
       </div>
       <nav id="mainNav" class="nav-list">
         <button class="nav-item active" data-tab="dashboard">🏠 <span>Главная</span></button>
@@ -50,6 +50,10 @@
         <button class="nav-item" data-tab="expenses">🧾 <span>Расходы</span></button>
         <button class="nav-item" data-tab="habits">✅ <span>Привычки</span></button>
         <button class="nav-item" data-tab="tasks">📋 <span>Задачи</span></button>
+        <button class="nav-item" data-tab="books">📚 <span>Книги</span></button>
+        <button class="nav-item" data-tab="media">🎬 <span>Кино</span></button>
+        <button class="nav-item" data-tab="mood">😊 <span>Настроение</span></button>
+        <button class="nav-item" data-tab="sleep">😴 <span>Сон</span></button>
         <button class="nav-item" data-tab="settings">⚙️ <span>Настройки</span></button>
       </nav>
       <div class="sidebar-bottom">
@@ -98,6 +102,25 @@
           <article class="panel">
             <div class="panel-head"><div><h3>Привычки сегодня</h3><p class="muted">Нажмите, чтобы отметить выполнение</p></div><button class="text-btn" data-go="habits">Трекер →</button></div>
             <div id="todayHabits" class="stack gap-sm"></div>
+          </article>
+        </div>
+
+        <div class="life-grid">
+          <article class="panel life-card">
+            <div class="panel-head"><div><h3>📚 Сейчас читаю</h3><p class="muted">Ваш текущий прогресс</p></div><button class="text-btn" data-go="books">Книги →</button></div>
+            <div id="dashboardReading" class="stack gap-sm"></div>
+          </article>
+          <article class="panel life-card">
+            <div class="panel-head"><div><h3>🎬 На вечер</h3><p class="muted">Случайный выбор из желаний</p></div><button class="text-btn" data-go="media">Кино →</button></div>
+            <div id="dashboardRandomMedia" class="stack gap-sm"></div>
+          </article>
+          <article class="panel life-card">
+            <div class="panel-head"><div><h3>😊 Настроение</h3><p class="muted">Отметка за сегодня</p></div><button class="text-btn" data-go="mood">Трекер →</button></div>
+            <div id="dashboardMood" class="stack gap-sm"></div>
+          </article>
+          <article class="panel life-card">
+            <div class="panel-head"><div><h3>😴 Сон</h3><p class="muted">Последняя запись</p></div><button class="text-btn" data-go="sleep">Трекер →</button></div>
+            <div id="dashboardSleep" class="stack gap-sm"></div>
           </article>
         </div>
       </section>
@@ -187,13 +210,154 @@
         </div>
       </section>
 
+
+      <section id="tab-books" class="tab-panel">
+        <div class="section-actions">
+          <div><h3>Моя библиотека</h3><p class="muted">Читаю, хочу прочитать, прочитано, оценки, прогресс и дневник чтения.</p></div>
+          <button id="addBookBtn" class="btn primary" type="button">+ Добавить книгу</button>
+        </div>
+
+        <div class="life-summary-grid">
+          <article class="summary-card book"><span>Читаю сейчас</span><strong id="booksReadingCount">0</strong><small>книг</small></article>
+          <article class="summary-card book"><span>Прочитано в этом году</span><strong id="booksFinishedYear">0</strong><small id="booksGoalHint">цель — 24</small></article>
+          <article class="summary-card book"><span>Серия чтения</span><strong id="readingStreak">0</strong><small>дней подряд</small></article>
+          <article class="summary-card book"><span>За этот месяц</span><strong id="readingMonthPages">0 стр.</strong><small id="readingMonthMinutes">0 мин.</small></article>
+        </div>
+
+        <div class="two-col align-start">
+          <article class="panel">
+            <div class="panel-head"><div><h3>Сейчас читаю</h3><p class="muted">Записывайте страницу и время после чтения.</p></div></div>
+            <div id="currentBooks" class="book-current-list"></div>
+          </article>
+          <article class="panel reading-timer-panel">
+            <div class="panel-head"><div><h3>⏱ Таймер чтения</h3><p class="muted">Можно свернуть приложение — время сохранится на этом устройстве.</p></div></div>
+            <label class="field"><span>Книга</span><select id="readingTimerBook"></select></label>
+            <div id="readingTimerDisplay" class="timer-display">00:00:00</div><div id="readingTodayGoal" class="hint" style="text-align:center"></div>
+            <div class="row gap-sm timer-actions">
+              <button id="readingTimerToggle" class="btn primary" type="button">▶ Начать</button>
+              <button id="readingTimerFinish" class="btn secondary" type="button">Завершить и записать</button>
+              <button id="readingTimerReset" class="btn ghost" type="button">Сбросить</button>
+            </div>
+          </article>
+        </div>
+
+        <article class="panel mt-lg">
+          <div class="panel-head wrap">
+            <div><h3>Книги</h3><p class="muted">Личная библиотека и список желаний.</p></div>
+            <div class="filter-row">
+              <input id="bookSearch" type="search" placeholder="Поиск книги или автора" />
+              <select id="bookStatusFilter">
+                <option value="all">Все</option>
+                <option value="reading">Читаю</option>
+                <option value="wishlist">Хочу прочитать</option>
+                <option value="finished">Прочитано</option>
+                <option value="paused">Отложено</option>
+                <option value="owned">Купленные</option>
+                <option value="favorite">Любимые</option>
+              </select>
+            </div>
+          </div>
+          <div id="booksLibrary" class="library-grid"></div>
+        </article>
+
+        <div class="two-col align-start mt-lg">
+          <article class="panel">
+            <div class="panel-head wrap"><div><h3>Книжный календарь</h3><p class="muted">Дни, когда вы читали.</p></div><input id="readingMonth" type="month" /></div>
+            <div id="readingCalendar" class="month-calendar"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><h3>Дневник чтения</h3><p class="muted">Последние сессии и заметки.</p></div></div>
+            <div id="readingJournal" class="journal-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="tab-media" class="tab-panel">
+        <div class="section-actions">
+          <div><h3>Фильмы и сериалы</h3><p class="muted">Список желаний, просмотренное, оценки и прогресс сериалов.</p></div>
+          <button id="addMediaBtn" class="btn primary" type="button">+ Добавить</button>
+        </div>
+
+        <div class="life-summary-grid">
+          <article class="summary-card media"><span>Хочу посмотреть</span><strong id="mediaWishlistCount">0</strong><small>в списке</small></article>
+          <article class="summary-card media"><span>Смотрю сейчас</span><strong id="mediaWatchingCount">0</strong><small>фильмов / сериалов</small></article>
+          <article class="summary-card media"><span>Просмотрено за год</span><strong id="mediaWatchedYear">0</strong><small>завершено</small></article>
+          <article class="summary-card media"><span>Средняя оценка</span><strong id="mediaAverageRating">—</strong><small>из 10</small></article>
+        </div>
+
+        <article class="panel random-picker">
+          <div>
+            <span class="eyebrow">🎲 Не могу выбрать</span>
+            <h3>Что посмотреть сегодня?</h3>
+            <p class="muted">Выберу случайный фильм или сериал из вашего списка желаний.</p>
+          </div>
+          <button id="randomMediaBtn" class="btn primary" type="button">Выбрать случайно</button>
+          <div id="randomMediaResult" class="random-result">Добавьте что-нибудь в «Хочу посмотреть».</div>
+        </article>
+
+        <article class="panel mt-lg">
+          <div class="panel-head wrap">
+            <div><h3>Моя коллекция</h3><p class="muted">Все фильмы и сериалы.</p></div>
+            <div class="filter-row">
+              <input id="mediaSearch" type="search" placeholder="Поиск по названию" />
+              <select id="mediaTypeFilter"><option value="all">Фильмы и сериалы</option><option value="movie">Только фильмы</option><option value="series">Только сериалы</option></select>
+              <select id="mediaStatusFilter"><option value="all">Все статусы</option><option value="wishlist">Хочу посмотреть</option><option value="watching">Смотрю</option><option value="watched">Просмотрено</option><option value="dropped">Брошено</option></select>
+            </div>
+          </div>
+          <div id="mediaLibrary" class="library-grid"></div>
+        </article>
+      </section>
+
+      <section id="tab-mood" class="tab-panel">
+        <div class="section-actions">
+          <div><h3>Трекер настроения</h3><p class="muted">Одна отметка в день + короткая заметка.</p></div>
+          <div class="row gap-sm"><input id="moodMonth" type="month" /><button id="moodTodayBtn" class="btn primary" type="button">+ Сегодня</button></div>
+        </div>
+        <div class="life-summary-grid">
+          <article class="summary-card mood"><span>Среднее настроение</span><strong id="moodAverage">—</strong><small>за месяц</small></article>
+          <article class="summary-card mood"><span>Отмечено</span><strong id="moodDaysCount">0</strong><small>дней</small></article>
+          <article class="summary-card mood"><span>Чаще всего</span><strong id="moodMostCommon">—</strong><small>настроение месяца</small></article>
+          <article class="summary-card mood"><span>Сегодня</span><strong id="moodTodayValue">—</strong><small>можно изменить</small></article>
+        </div>
+        <article class="panel">
+          <div id="moodCalendar" class="mood-calendar"></div>
+        </article>
+        <article class="panel mt-lg">
+          <div class="panel-head"><h3>Последние записи</h3></div>
+          <div id="moodHistory" class="journal-list"></div>
+        </article>
+      </section>
+
+      <section id="tab-sleep" class="tab-panel">
+        <div class="section-actions">
+          <div><h3>Трекер сна</h3><p class="muted">Время сна, подъёма, длительность и качество.</p></div>
+          <div class="row gap-sm"><input id="sleepMonth" type="month" /><button id="sleepTodayBtn" class="btn primary" type="button">+ Записать сон</button></div>
+        </div>
+        <div class="life-summary-grid">
+          <article class="summary-card sleep"><span>Средняя длительность</span><strong id="sleepAverageHours">—</strong><small>за месяц</small></article>
+          <article class="summary-card sleep"><span>Среднее качество</span><strong id="sleepAverageQuality">—</strong><small>из 5</small></article>
+          <article class="summary-card sleep"><span>Ночей записано</span><strong id="sleepNightsCount">0</strong><small>за месяц</small></article>
+          <article class="summary-card sleep"><span>Цель</span><strong id="sleepGoalLabel">8 ч</strong><small>сна в сутки</small></article>
+        </div>
+        <article class="panel">
+          <div id="sleepCalendar" class="sleep-calendar"></div>
+        </article>
+        <article class="panel mt-lg">
+          <div class="panel-head"><h3>История сна</h3></div>
+          <div id="sleepHistory" class="table-wrap"></div>
+        </article>
+      </section>
+
       <section id="tab-settings" class="tab-panel">
         <div class="two-col align-start">
           <article class="panel">
             <h3>Финансовые настройки</h3>
             <form id="settingsForm" class="stack gap-md">
               <label class="field"><span>Средний доход в месяц</span><input id="monthlyIncomeTarget" type="number" min="0" step="100" /></label>
-              <p class="hint">От этой суммы рассчитываются проценты, которые стоит откладывать с каждого дохода.</p>
+              <label class="field"><span>Книжная цель на год</span><input id="yearlyBookGoal" type="number" min="0" step="1" /></label>
+              <label class="field"><span>Цель чтения в день, минут</span><input id="dailyReadingGoal" type="number" min="0" step="5" /></label>
+              <label class="field"><span>Цель сна, часов</span><input id="sleepGoalHours" type="number" min="1" max="16" step="0.5" /></label>
+              <p class="hint">Эти значения используются в финансовом, книжном и трекере сна.</p>
               <button class="btn primary" type="submit">Сохранить</button>
             </form>
           </article>
@@ -217,9 +381,110 @@
       <button class="nav-item" data-tab="expenses">🧾<span>Расходы</span></button>
       <button class="nav-item" data-tab="habits">✅<span>Привычки</span></button>
       <button class="nav-item" data-tab="tasks">📋<span>Задачи</span></button>
+      <button class="nav-item" data-tab="books">📚<span>Книги</span></button>
+      <button class="nav-item" data-tab="media">🎬<span>Кино</span></button>
+      <button class="nav-item" data-tab="mood">😊<span>Настроение</span></button>
+      <button class="nav-item" data-tab="sleep">😴<span>Сон</span></button>
       <button class="nav-item" data-tab="settings">⚙️<span>Настройки</span></button>
     </nav>
   </div>
+
+
+  <dialog id="bookDialog" class="modal">
+    <form id="bookForm" method="dialog" class="modal-card modal-wide">
+      <div class="panel-head"><h3 id="bookDialogTitle">Добавить книгу</h3><button class="icon-btn" value="cancel">✕</button></div>
+      <input id="bookId" type="hidden" />
+      <div class="form-grid">
+        <label class="field"><span>Название</span><input id="bookTitle" maxlength="180" required /></label>
+        <label class="field"><span>Автор</span><input id="bookAuthor" maxlength="140" /></label>
+        <label class="field"><span>Статус</span><select id="bookStatus"><option value="reading">Читаю</option><option value="wishlist">Хочу прочитать</option><option value="finished">Прочитано</option><option value="paused">Отложено</option></select></label>
+        <label class="field"><span>Обложка — ссылка на изображение</span><input id="bookCover" type="url" placeholder="https://..." /></label>
+        <label class="field"><span>Всего страниц</span><input id="bookTotalPages" type="number" min="0" step="1" /></label>
+        <label class="field"><span>Текущая страница</span><input id="bookCurrentPage" type="number" min="0" step="1" /></label>
+        <label class="field"><span>Оценка</span><select id="bookRating"><option value="0">Без оценки</option><option value="1">★☆☆☆☆</option><option value="2">★★☆☆☆</option><option value="3">★★★☆☆</option><option value="4">★★★★☆</option><option value="5">★★★★★</option></select></label>
+        <label class="field"><span>Начала читать</span><input id="bookStartedOn" type="date" /></label>
+        <label class="field"><span>Закончила</span><input id="bookFinishedOn" type="date" /></label>
+        <label class="check-field"><input id="bookFavorite" type="checkbox" /><span>❤️ Любимая</span></label>
+        <label class="check-field"><input id="bookOwned" type="checkbox" /><span>📚 Книга куплена</span></label>
+      </div>
+      <label class="field"><span>Отзыв / заметки</span><textarea id="bookNotes" rows="4" maxlength="3000" placeholder="Мысли о книге, цитаты, впечатления..."></textarea></label>
+      <div class="row gap-sm justify-between">
+        <button id="deleteBookBtn" class="btn danger hidden" type="button">Удалить</button>
+        <div class="row gap-sm"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" type="submit" value="default">Сохранить</button></div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="readingDialog" class="modal">
+    <form id="readingForm" method="dialog" class="modal-card">
+      <div class="panel-head"><h3>Записать чтение</h3><button class="icon-btn" value="cancel">✕</button></div>
+      <input id="readingBookId" type="hidden" />
+      <p id="readingBookLabel" class="muted"></p>
+      <label class="field"><span>До какой страницы дочитала</span><input id="readingNewPage" type="number" min="0" step="1" required /></label>
+      <label class="field"><span>Читала, минут</span><input id="readingMinutes" type="number" min="0" step="1" value="0" /></label>
+      <label class="field"><span>Дата</span><input id="readingDate" type="date" required /></label>
+      <label class="field"><span>Заметка</span><textarea id="readingNote" rows="3" maxlength="1200" placeholder="Что запомнилось сегодня?"></textarea></label>
+      <div class="row gap-sm justify-end"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" type="submit" value="default">Сохранить</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="mediaDialog" class="modal">
+    <form id="mediaForm" method="dialog" class="modal-card modal-wide">
+      <div class="panel-head"><h3 id="mediaDialogTitle">Добавить фильм или сериал</h3><button class="icon-btn" value="cancel">✕</button></div>
+      <input id="mediaId" type="hidden" />
+      <div class="form-grid">
+        <label class="field"><span>Название</span><input id="mediaTitle" maxlength="180" required /></label>
+        <label class="field"><span>Тип</span><select id="mediaType"><option value="movie">Фильм</option><option value="series">Сериал</option></select></label>
+        <label class="field"><span>Статус</span><select id="mediaStatus"><option value="wishlist">Хочу посмотреть</option><option value="watching">Смотрю</option><option value="watched">Просмотрено</option><option value="dropped">Брошено</option></select></label>
+        <label class="field"><span>Год</span><input id="mediaYear" type="number" min="1880" max="2200" step="1" /></label>
+        <label class="field"><span>Постер — ссылка на изображение</span><input id="mediaCover" type="url" placeholder="https://..." /></label>
+        <label class="field"><span>Оценка 1–10</span><input id="mediaRating" type="number" min="0" max="10" step="0.5" /></label>
+        <label class="field series-only"><span>Текущий сезон</span><input id="mediaSeasonCurrent" type="number" min="0" step="1" /></label>
+        <label class="field series-only"><span>Всего сезонов</span><input id="mediaSeasonsTotal" type="number" min="0" step="1" /></label>
+        <label class="field series-only"><span>Просмотрено серий</span><input id="mediaEpisodeCurrent" type="number" min="0" step="1" /></label>
+        <label class="field series-only"><span>Всего серий</span><input id="mediaEpisodesTotal" type="number" min="0" step="1" /></label>
+        <label class="field"><span>Дата просмотра / завершения</span><input id="mediaWatchedOn" type="date" /></label>
+        <label class="check-field"><input id="mediaFavorite" type="checkbox" /><span>❤️ В избранное</span></label>
+      </div>
+      <label class="field"><span>Заметки / впечатления</span><textarea id="mediaNotes" rows="4" maxlength="3000"></textarea></label>
+      <div class="row gap-sm justify-between">
+        <button id="deleteMediaBtn" class="btn danger hidden" type="button">Удалить</button>
+        <div class="row gap-sm"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" type="submit" value="default">Сохранить</button></div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="moodDialog" class="modal">
+    <form id="moodForm" method="dialog" class="modal-card">
+      <div class="panel-head"><h3>Настроение</h3><button class="icon-btn" value="cancel">✕</button></div>
+      <label class="field"><span>Дата</span><input id="moodDate" type="date" required /></label>
+      <div class="mood-picker" id="moodPicker">
+        <button type="button" data-mood="1">😣<span>Очень плохо</span></button>
+        <button type="button" data-mood="2">😕<span>Плохо</span></button>
+        <button type="button" data-mood="3">😐<span>Нормально</span></button>
+        <button type="button" data-mood="4">🙂<span>Хорошо</span></button>
+        <button type="button" data-mood="5">🤩<span>Отлично</span></button>
+      </div>
+      <input id="moodValue" type="hidden" required />
+      <label class="field"><span>Заметка</span><textarea id="moodNote" rows="3" maxlength="1000" placeholder="Что повлияло на настроение?"></textarea></label>
+      <div class="row gap-sm justify-end"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" type="submit" value="default">Сохранить</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="sleepDialog" class="modal">
+    <form id="sleepForm" method="dialog" class="modal-card">
+      <div class="panel-head"><h3>Записать сон</h3><button class="icon-btn" value="cancel">✕</button></div>
+      <label class="field"><span>Дата пробуждения</span><input id="sleepDate" type="date" required /></label>
+      <div class="form-grid two">
+        <label class="field"><span>Легла спать</span><input id="sleepBedTime" type="time" required /></label>
+        <label class="field"><span>Проснулась</span><input id="sleepWakeTime" type="time" required /></label>
+      </div>
+      <label class="field"><span>Качество сна</span><select id="sleepQuality"><option value="1">1 — очень плохо</option><option value="2">2 — плохо</option><option value="3">3 — нормально</option><option value="4">4 — хорошо</option><option value="5">5 — отлично</option></select></label>
+      <label class="field"><span>Заметка</span><textarea id="sleepNote" rows="3" maxlength="1000" placeholder="Как спалось?"></textarea></label>
+      <div id="sleepDurationPreview" class="info-box">Длительность посчитается автоматически.</div>
+      <div class="row gap-sm justify-end"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" type="submit" value="default">Сохранить</button></div>
+    </form>
+  </dialog>
 
   <dialog id="debtDialog" class="modal">
     <form id="debtEditForm" method="dialog" class="modal-card">
@@ -256,7 +521,7 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=3"></script>
-  <script src="app.js?v=3"></script>
+  <script src="config.js?v=4"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
