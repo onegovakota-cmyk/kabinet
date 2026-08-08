@@ -232,7 +232,7 @@
           <article class="panel reading-timer-panel">
             <div class="panel-head"><div><h3>⏱ Таймер чтения</h3><p class="muted">Можно свернуть приложение — время сохранится на этом устройстве.</p></div></div>
             <label class="field"><span>Книга</span><select id="readingTimerBook"></select></label>
-            <div id="readingTimerDisplay" class="timer-display">00:00:00</div><div id="readingTodayGoal" class="hint" style="text-align:center"></div>
+            <div id="readingTimerDisplay" class="timer-display">00:00:00</div>
             <div class="row gap-sm timer-actions">
               <button id="readingTimerToggle" class="btn primary" type="button">▶ Начать</button>
               <button id="readingTimerFinish" class="btn secondary" type="button">Завершить и записать</button>
@@ -351,8 +351,19 @@
       <section id="tab-settings" class="tab-panel">
         <div class="two-col align-start">
           <article class="panel">
-            <h3>Финансовые настройки</h3>
+            <h3>Настройки кабинета</h3>
             <form id="settingsForm" class="stack gap-md">
+              <div class="field">
+                <span>Тема кабинета</span>
+                <div class="theme-picker" role="radiogroup" aria-label="Тема кабинета">
+                  <label class="theme-option" data-theme-preview="violet"><input type="radio" name="cabinetTheme" value="violet" /><span class="theme-swatch"><i></i><i></i><i></i></span><b>Лаванда</b></label>
+                  <label class="theme-option" data-theme-preview="rose"><input type="radio" name="cabinetTheme" value="rose" /><span class="theme-swatch"><i></i><i></i><i></i></span><b>Роза</b></label>
+                  <label class="theme-option" data-theme-preview="ocean"><input type="radio" name="cabinetTheme" value="ocean" /><span class="theme-swatch"><i></i><i></i><i></i></span><b>Океан</b></label>
+                  <label class="theme-option" data-theme-preview="sage"><input type="radio" name="cabinetTheme" value="sage" /><span class="theme-swatch"><i></i><i></i><i></i></span><b>Шалфей</b></label>
+                  <label class="theme-option" data-theme-preview="peach"><input type="radio" name="cabinetTheme" value="peach" /><span class="theme-swatch"><i></i><i></i><i></i></span><b>Персик</b></label>
+                </div>
+                <small class="muted">Тема меняется сразу. Нажмите «Сохранить», чтобы она синхронизировалась между устройствами.</small>
+              </div>
               <label class="field"><span>Средний доход в месяц</span><input id="monthlyIncomeTarget" type="number" min="0" step="100" /></label>
               <label class="field"><span>Книжная цель на год</span><input id="yearlyBookGoal" type="number" min="0" step="1" /></label>
               <label class="field"><span>Цель чтения в день, минут</span><input id="dailyReadingGoal" type="number" min="0" step="5" /></label>
@@ -428,28 +439,36 @@
     </form>
   </dialog>
 
-  <dialog id="mediaDialog" class="modal">
-    <form id="mediaForm" method="dialog" class="modal-card modal-wide">
-      <div class="panel-head"><h3 id="mediaDialogTitle">Добавить фильм или сериал</h3><button class="icon-btn" value="cancel">✕</button></div>
-      <input id="mediaId" type="hidden" />
-      <div class="form-grid">
-        <label class="field"><span>Название</span><input id="mediaTitle" maxlength="180" required /></label>
-        <label class="field"><span>Тип</span><select id="mediaType"><option value="movie">Фильм</option><option value="series">Сериал</option></select></label>
-        <label class="field"><span>Статус</span><select id="mediaStatus"><option value="wishlist">Хочу посмотреть</option><option value="watching">Смотрю</option><option value="watched">Просмотрено</option><option value="dropped">Брошено</option></select></label>
-        <label class="field"><span>Год</span><input id="mediaYear" type="number" min="1880" max="2200" step="1" /></label>
-        <label class="field"><span>Постер — ссылка на изображение</span><input id="mediaCover" type="url" placeholder="https://..." /></label>
-        <label class="field"><span>Оценка 1–10</span><input id="mediaRating" type="number" min="0" max="10" step="0.5" /></label>
-        <label class="field series-only"><span>Текущий сезон</span><input id="mediaSeasonCurrent" type="number" min="0" step="1" /></label>
-        <label class="field series-only"><span>Всего сезонов</span><input id="mediaSeasonsTotal" type="number" min="0" step="1" /></label>
-        <label class="field series-only"><span>Просмотрено серий</span><input id="mediaEpisodeCurrent" type="number" min="0" step="1" /></label>
-        <label class="field series-only"><span>Всего серий</span><input id="mediaEpisodesTotal" type="number" min="0" step="1" /></label>
-        <label class="field"><span>Дата просмотра / завершения</span><input id="mediaWatchedOn" type="date" /></label>
-        <label class="check-field"><input id="mediaFavorite" type="checkbox" /><span>❤️ В избранное</span></label>
+  <dialog id="mediaDialog" class="modal media-modal">
+    <form id="mediaForm" method="dialog" class="modal-card media-modal-card">
+      <div class="panel-head media-modal-header">
+        <div><h3 id="mediaDialogTitle">Добавить фильм или сериал</h3><p class="muted">Карточка открывается на весь экран — заполняйте и прокручивайте её как отдельную страницу.</p></div>
+        <button class="icon-btn dialog-close" data-dialog="mediaDialog" type="button" aria-label="Закрыть">✕</button>
       </div>
-      <label class="field"><span>Заметки / впечатления</span><textarea id="mediaNotes" rows="4" maxlength="3000"></textarea></label>
-      <div class="row gap-sm justify-between">
+      <div class="media-modal-body">
+        <input id="mediaId" type="hidden" />
+        <div class="form-grid media-form-grid">
+          <label class="field"><span>Название</span><input id="mediaTitle" maxlength="180" required /></label>
+          <label class="field"><span>Тип</span><select id="mediaType"><option value="movie">Фильм</option><option value="series">Сериал</option></select></label>
+          <label class="field"><span>Статус</span><select id="mediaStatus"><option value="wishlist">Хочу посмотреть</option><option value="watching">Смотрю</option><option value="watched">Просмотрено</option><option value="dropped">Брошено</option></select></label>
+          <label class="field"><span>Год</span><input id="mediaYear" type="number" min="1880" max="2200" step="1" /></label>
+          <label class="field"><span>Постер — ссылка на изображение</span><input id="mediaCover" type="url" placeholder="https://..." /></label>
+          <label class="field"><span>Оценка 1–10</span><input id="mediaRating" type="number" min="0" max="10" step="0.5" /></label>
+          <label class="field series-only"><span>Текущий сезон</span><input id="mediaSeasonCurrent" type="number" min="0" step="1" /></label>
+          <label class="field series-only"><span>Всего сезонов</span><input id="mediaSeasonsTotal" type="number" min="0" step="1" /></label>
+          <label class="field series-only"><span>Просмотрено серий</span><input id="mediaEpisodeCurrent" type="number" min="0" step="1" /></label>
+          <label class="field series-only"><span>Всего серий</span><input id="mediaEpisodesTotal" type="number" min="0" step="1" /></label>
+          <label class="field"><span>Дата просмотра / завершения</span><input id="mediaWatchedOn" type="date" /></label>
+          <label class="check-field"><input id="mediaFavorite" type="checkbox" /><span>❤️ В избранное</span></label>
+        </div>
+        <div class="media-text-grid">
+          <label class="field"><span>Заметки</span><textarea id="mediaNotes" rows="5" maxlength="3000" placeholder="Актёры, детали, что хочется запомнить, где остановилась..."></textarea></label>
+          <label class="field media-impression"><span>Мои впечатления</span><textarea id="mediaImpression" rows="8" maxlength="6000" placeholder="Что понравилось или не понравилось? Какие эмоции вызвал фильм? Хочется ли пересмотреть или рекомендовать?"></textarea></label>
+        </div>
+      </div>
+      <div class="media-modal-footer">
         <button id="deleteMediaBtn" class="btn danger hidden" type="button">Удалить</button>
-        <div class="row gap-sm"><button class="btn ghost" value="cancel">Отмена</button><button class="btn primary" type="submit" value="default">Сохранить</button></div>
+        <div class="row gap-sm media-footer-actions"><button class="btn ghost dialog-close" data-dialog="mediaDialog" type="button">Отмена</button><button class="btn primary" type="submit" value="default">Сохранить</button></div>
       </div>
     </form>
   </dialog>

@@ -20,7 +20,7 @@
   let authMode = 'login';
   let activeTab = 'dashboard';
   let state = {
-    settings: { monthly_income_target: 110000, yearly_book_goal: 24, daily_reading_goal_minutes: 20, sleep_goal_hours: 8 },
+    settings: { monthly_income_target: 110000, yearly_book_goal: 24, daily_reading_goal_minutes: 20, sleep_goal_hours: 8, theme: 'violet' },
     debts: [], fixed: [], incomes: [], expenses: [], payments: [], habits: [], habitLogs: [], tasks: [],
     books: [], readingLogs: [], media: [], moods: [], sleep: []
   };
@@ -35,6 +35,19 @@
   const bookStatusLabels = { reading:'Читаю', wishlist:'Хочу прочитать', finished:'Прочитано', paused:'Отложено' };
   const mediaStatusLabels = { wishlist:'Хочу посмотреть', watching:'Смотрю', watched:'Просмотрено', dropped:'Брошено' };
   const mediaTypeLabels = { movie:'Фильм', series:'Сериал' };
+  const allowedThemes = new Set(['violet','rose','ocean','sage','peach']);
+
+  function applyTheme(theme) {
+    const value = allowedThemes.has(theme) ? theme : 'violet';
+    document.documentElement.dataset.theme = value;
+    try { localStorage.setItem('pf_theme', value); } catch (_) {}
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const colors = { violet:'#6f5cff', rose:'#d96b8b', ocean:'#3f83c5', sage:'#5f8f72', peach:'#d77b55' };
+    if (meta) meta.setAttribute('content', colors[value]);
+    return value;
+  }
+
+  applyTheme((() => { try { return localStorage.getItem('pf_theme') || 'violet'; } catch (_) { return 'violet'; } })());
 
   let readingTimer = { running:false, startedAt:null, accumulated:0, bookId:null, tick:null };
 
@@ -205,7 +218,8 @@
       return;
     }
 
-    state.settings = settings.data || { monthly_income_target: 110000 };
+    state.settings = settings.data || { monthly_income_target: 110000, theme: 'violet' };
+    state.settings.theme = applyTheme(state.settings.theme || 'violet');
     state.debts = debts.data || [];
     state.fixed = fixed.data || [];
     state.incomes = incomes.data || [];
@@ -230,6 +244,8 @@
     $('#yearlyBookGoal').value = num(state.settings.yearly_book_goal || 24);
     $('#dailyReadingGoal').value = num(state.settings.daily_reading_goal_minutes || 20);
     $('#sleepGoalHours').value = num(state.settings.sleep_goal_hours || 8);
+    const currentTheme = applyTheme(state.settings.theme || 'violet');
+    $$('input[name="cabinetTheme"]').forEach(r => { r.checked = r.value === currentTheme; });
     renderDashboard();
     renderDebts();
     renderIncomes();
@@ -769,6 +785,7 @@
           <div class="library-card-title">${esc(m.title)}</div>
           <div class="library-card-subtitle">${mediaTypeLabels[m.media_type]||m.media_type}${m.release_year?` · ${m.release_year}`:''}</div>
           <div class="library-card-meta"><span>${esc(progress||'')}</span><strong>${num(m.rating)>0?`${num(m.rating).toFixed(1).replace('.',',')}/10`:''}</strong></div>
+          ${m.impression?`<div class="library-card-review">${esc(m.impression)}</div>`:''}
           <div class="library-card-actions"><button class="btn ghost media-edit" data-id="${m.id}">Изменить</button></div>
         </div>
       </article>`;
@@ -781,7 +798,7 @@
     $('#mediaId').value=''; $('#mediaTitle').value=''; $('#mediaType').value='movie'; $('#mediaStatus').value='wishlist';
     $('#mediaYear').value=''; $('#mediaCover').value=''; $('#mediaRating').value='0';
     $('#mediaSeasonCurrent').value='0'; $('#mediaSeasonsTotal').value='0'; $('#mediaEpisodeCurrent').value='0'; $('#mediaEpisodesTotal').value='0';
-    $('#mediaWatchedOn').value=''; $('#mediaFavorite').checked=false; $('#mediaNotes').value='';
+    $('#mediaWatchedOn').value=''; $('#mediaFavorite').checked=false; $('#mediaNotes').value=''; $('#mediaImpression').value='';
     $('#deleteMediaBtn').classList.add('hidden'); toggleMediaSeriesFields(); $('#mediaDialog').showModal();
   }
 
@@ -791,7 +808,7 @@
     $('#mediaId').value=m.id; $('#mediaTitle').value=m.title||''; $('#mediaType').value=m.media_type||'movie'; $('#mediaStatus').value=m.status||'wishlist';
     $('#mediaYear').value=m.release_year||''; $('#mediaCover').value=m.cover_url||''; $('#mediaRating').value=num(m.rating);
     $('#mediaSeasonCurrent').value=num(m.season_current); $('#mediaSeasonsTotal').value=num(m.seasons_total); $('#mediaEpisodeCurrent').value=num(m.episode_current); $('#mediaEpisodesTotal').value=num(m.episodes_total);
-    $('#mediaWatchedOn').value=m.watched_on||''; $('#mediaFavorite').checked=!!m.favorite; $('#mediaNotes').value=m.notes||'';
+    $('#mediaWatchedOn').value=m.watched_on||''; $('#mediaFavorite').checked=!!m.favorite; $('#mediaNotes').value=m.notes||''; $('#mediaImpression').value=m.impression||'';
     $('#deleteMediaBtn').classList.remove('hidden'); toggleMediaSeriesFields(); $('#mediaDialog').showModal();
   }
 
@@ -1009,6 +1026,9 @@
     $('#mediaStatusFilter').addEventListener('change', renderMedia);
     $('#randomMediaBtn').onclick = () => pickRandomMedia();
 
+    // Тема кабинета — предпросмотр сразу при выборе
+    $$('input[name="cabinetTheme"]').forEach(r => r.addEventListener('change', () => applyTheme(r.value)));
+
     // Настроение
     $('#moodMonth').addEventListener('change', renderMood);
     $('#moodTodayBtn').onclick = () => openMood(todayISO());
@@ -1089,7 +1109,8 @@
         monthly_income_target:amount,
         yearly_book_goal:num($('#yearlyBookGoal').value || 24),
         daily_reading_goal_minutes:num($('#dailyReadingGoal').value || 20),
-        sleep_goal_hours:num($('#sleepGoalHours').value || 8)
+        sleep_goal_hours:num($('#sleepGoalHours').value || 8),
+        theme:applyTheme($('input[name="cabinetTheme"]:checked')?.value || state.settings.theme || 'violet')
       };
       const {error} = await sb.from('pf_settings').upsert(payload,{onConflict:'user_id'});
       if (error) toast('Не удалось сохранить настройки','error'); else toast('Настройки сохранены');
@@ -1181,7 +1202,8 @@
         episode_current:type==='series'?Math.round(num($('#mediaEpisodeCurrent').value)):0,
         episodes_total:type==='series'?Math.round(num($('#mediaEpisodesTotal').value)):0,
         watched_on:$('#mediaWatchedOn').value||(status==='watched'?todayISO():null),
-        notes:$('#mediaNotes').value.trim()||null
+        notes:$('#mediaNotes').value.trim()||null,
+        impression:$('#mediaImpression').value.trim()||null
       };
       const result=id?await sb.from('pf_media').update(payload).eq('id',id):await sb.from('pf_media').insert({...payload,user_id:user.id});
       if (result.error) { console.error(result.error); toast('Не удалось сохранить','error'); }
