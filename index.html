@@ -8,7 +8,7 @@
   <title>Мой личный кабинет</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=10.3" />
+  <link rel="stylesheet" href="style.css?v=10.4" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -97,6 +97,18 @@
             <button class="quick-action" type="button" data-quick="energy">🌿<span>Энергию</span></button>
           </div>
         </article>
+
+        <article class="panel urgent-projects-panel">
+          <div class="panel-head">
+            <div>
+              <h3>🔥 Горящие проекты</h3>
+              <p class="muted">Проекты в работе с дедлайном в ближайшие 7 дней или уже просроченные.</p>
+            </div>
+            <button class="text-btn" type="button" data-go="plan" data-plan-view="projects">Все проекты →</button>
+          </div>
+          <div id="dashboardUrgentProjects" class="urgent-projects-grid"></div>
+        </article>
+
         <div class="summary-grid">
           <article class="summary-card income"><span>Доходы за месяц</span><strong id="sumIncome">0 ₽</strong><small id="sumIncomeHint">цель 110 000 ₽</small></article>
           <article class="summary-card expense"><span>Расходы за месяц</span><strong id="sumExpenses">0 ₽</strong><small>без платежей по долгам</small></article>
@@ -792,7 +804,7 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=10.3"></script>
-  <script src="app.js?v=10.3"></script>
+  <script src="config.js?v=10.4"></script>
+  <script src="app.js?v=10.4"></script>
 </body>
 </html>

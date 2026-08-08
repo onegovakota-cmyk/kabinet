@@ -388,6 +388,89 @@
     const mood=state.moods.find(x=>x.day===todayISO()); $('#todayMoodMini').textContent=mood?(moodMeta[mood.mood]?.emoji||mood.mood):'—';
     const sleep=state.sleep.find(x=>x.day===todayISO())||state.sleep[0]; $('#todaySleepMini').textContent=sleep?`${(num(sleep.duration_minutes)/60).toFixed(1)} ч`:'—';
     const en=state.energy.find(x=>x.day===todayISO()); $('#todayEnergyMini').textContent=en?`${en.energy}/5`:'—';
+    renderUrgentProjects();
+  }
+
+  function renderUrgentProjects() {
+    const box = $('#dashboardUrgentProjects');
+    if (!box) return;
+
+    const today = todayISO();
+
+    const urgent = state.projects
+      .filter(p => p.status === 'active' && p.deadline)
+      .map(p => {
+        const daysLeft = daysBetween(today, p.deadline);
+        const steps = state.projectSteps.filter(s => s.project_id === p.id);
+        const completedSteps = steps.filter(s => s.completed).length;
+        const progress = steps.length
+          ? Math.round(completedSteps / steps.length * 100)
+          : clamp(num(p.progress), 0, 100);
+        return {...p, daysLeft, progress, stepsCount: steps.length, completedSteps};
+      })
+      .filter(p => p.daysLeft <= 7)
+      .sort((a,b) => a.daysLeft - b.daysLeft)
+      .slice(0, 6);
+
+    if (!urgent.length) {
+      box.innerHTML = `<div class="urgent-projects-empty">
+        <div class="urgent-projects-empty-icon">✨</div>
+        <div><strong>Горящих дедлайнов нет</strong><span>Сейчас нет активных проектов со сроком в ближайшие 7 дней.</span></div>
+      </div>`;
+      return;
+    }
+
+    const deadlineMeta = days => {
+      if (days < 0) {
+        const overdue = Math.abs(days);
+        return {label:`Просрочено на ${overdue} ${pluralRu(overdue,'день','дня','дней')}`, cls:'overdue'};
+      }
+      if (days === 0) return {label:'Дедлайн сегодня', cls:'today'};
+      if (days === 1) return {label:'Остался 1 день', cls:'urgent'};
+      if (days <= 3) return {label:`Осталось ${days} дня`, cls:'urgent'};
+      return {label:`Осталось ${days} дней`, cls:'soon'};
+    };
+
+    box.innerHTML = urgent.map(p => {
+      const meta = deadlineMeta(p.daysLeft);
+      const stepText = p.stepsCount
+        ? `${p.completedSteps}/${p.stepsCount} этапов`
+        : `${Math.round(p.progress)}% готово`;
+
+      return `<article class="urgent-project-card ${meta.cls}">
+        <div class="urgent-project-top">
+          <span class="urgent-deadline-badge ${meta.cls}">${meta.label}</span>
+          <button class="text-btn urgent-project-open" type="button" data-id="${p.id}">Открыть</button>
+        </div>
+        <h4>${esc(p.title)}</h4>
+        <div class="urgent-project-meta">
+          <span>${projectAreaMeta[p.area] || 'Проект'}</span>
+          <span>до ${prettyDate(p.deadline)}</span>
+        </div>
+        <div class="progress"><span style="width:${p.progress}%"></span></div>
+        <div class="urgent-project-progress">
+          <span>${stepText}</span>
+          <strong>${Math.round(p.progress)}%</strong>
+        </div>
+      </article>`;
+    }).join('');
+
+    $$('.urgent-project-open').forEach(btn => {
+      btn.onclick = () => {
+        switchTab('plan');
+        switchPlanView('projects');
+        requestAnimationFrame(() => openProjectEdit(btn.dataset.id));
+      };
+    });
+  }
+
+  function pluralRu(n, one, few, many) {
+    n = Math.abs(Number(n)) % 100;
+    const n1 = n % 10;
+    if (n > 10 && n < 20) return many;
+    if (n1 > 1 && n1 < 5) return few;
+    if (n1 === 1) return one;
+    return many;
   }
 
   function renderPlanning(){
@@ -1390,8 +1473,10 @@
     }));
     $$('[data-go]').forEach(b=>b.addEventListener('click',()=>{
       if (b.dataset.financeView) financeSubtab = b.dataset.financeView;
+      if (b.dataset.planView) planSubtab = b.dataset.planView;
       switchTab(b.dataset.go);
       if (b.dataset.go === 'finance') switchFinanceView(financeSubtab);
+      if (b.dataset.go === 'plan') switchPlanView(planSubtab);
     }));
     $$('[data-finance-tab]').forEach(b=>b.addEventListener('click',()=>switchFinanceView(b.dataset.financeTab)));
     $$('[data-plan-tab]').forEach(b=>b.addEventListener('click',()=>switchPlanView(b.dataset.planTab)));
