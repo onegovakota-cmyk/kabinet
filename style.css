@@ -610,3 +610,35 @@ body.dialog-open { overflow: hidden; }
 .library-card-badges .status-pill {
   width: fit-content;
 }
+
+
+/* v9 — исправления книжных полок и таймера */
+.timer-status {
+  min-height: 20px;
+  margin-top: -4px;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+#bookShelfTabs .shelf-tab {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#bookShelfTabs .shelf-tab:active {
+  transform: translateY(1px);
+}
+.reading-timer-panel button:disabled {
+  opacity: .48;
+  cursor: not-allowed;
+}
+@media (max-width: 520px) {
+  .timer-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  #readingTimerReset {
+    grid-column: 1 / -1;
+  }
+}

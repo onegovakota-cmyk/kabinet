@@ -8,7 +8,7 @@
   <title>Мой личный кабинет</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=8" />
+  <link rel="stylesheet" href="style.css?v=9" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -286,6 +286,7 @@
             <div class="panel-head"><div><h3>⏱ Таймер чтения</h3><p class="muted">Можно свернуть приложение — время сохранится на этом устройстве.</p></div></div>
             <label class="field"><span>Книга</span><select id="readingTimerBook"></select></label>
             <div id="readingTimerDisplay" class="timer-display">00:00:00</div>
+            <div id="readingTimerStatus" class="timer-status">Выберите книгу и нажмите «Начать».</div>
             <div class="row gap-sm timer-actions">
               <button id="readingTimerToggle" class="btn primary" type="button">▶ Начать</button>
               <button id="readingTimerFinish" class="btn secondary" type="button">Завершить и записать</button>
@@ -616,7 +617,7 @@
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js?v=8"></script>
-  <script src="app.js?v=8"></script>
+  <script src="config.js?v=9"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

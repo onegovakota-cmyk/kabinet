@@ -579,6 +579,20 @@
     return html;
   }
 
+
+  function setBookShelfFilter(filter, {scroll=false} = {}) {
+    const allowed = new Set(['all','reading','wishlist','finished','paused','owned','favorite']);
+    bookShelfFilter = allowed.has(filter) ? filter : 'all';
+    renderBooks();
+    if (scroll) {
+      requestAnimationFrame(() => $('#booksLibrary')?.scrollIntoView({behavior:'smooth', block:'start'}));
+    }
+  }
+
+  function timerEligibleBooks() {
+    return state.books.filter(b => b.status !== 'finished');
+  }
+
   function renderBooks() {
     const reading = state.books.filter(b=>b.status==='reading');
     const year = todayISO().slice(0,4);
@@ -619,7 +633,9 @@
       favorite: state.books.filter(b=>b.favorite).length
     };
     $$('[data-book-filter]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.bookFilter === bookShelfFilter);
+      const isActive = btn.dataset.bookFilter === bookShelfFilter;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
       const count = btn.querySelector('[data-count]');
       if (count) count.textContent = bookCounts[btn.dataset.bookFilter] ?? 0;
     });
@@ -662,7 +678,12 @@
       const book=state.books.find(x=>x.id===b.dataset.id);
       if (!book) return;
       const {error}=await sb.from('pf_books').update({status:'reading',started_on:book.started_on||todayISO()}).eq('id',book.id);
-      if (error) toast('Не удалось начать книгу','error'); else toast('Книга перенесена в «Читаю»');
+      if (error) {
+        toast('Не удалось начать книгу','error');
+        return;
+      }
+      toast('Книга перенесена в «Читаю»');
+      bookShelfFilter='reading';
       await loadAll({silent:true});
     });
 
@@ -795,17 +816,47 @@
     if (select) select.disabled=readingTimer.running;
     const finish=$('#readingTimerFinish');
     if (finish) finish.disabled=!readingTimer.bookId || timerElapsedMs()<=0;
+
+    const status=$('#readingTimerStatus');
+    if (status) {
+      const book=state.books.find(b=>b.id===readingTimer.bookId);
+      if (!book) status.textContent='Добавьте книгу, чтобы запустить таймер.';
+      else if (readingTimer.running) status.textContent=`Сейчас читаем: ${book.title}`;
+      else if (timerElapsedMs()>0) status.textContent=`Таймер на паузе · ${book.title}`;
+      else if (book.status!=='reading') status.textContent=`${book.title} перейдёт в «Читаю» при запуске таймера.`;
+      else status.textContent=`Готово к чтению: ${book.title}`;
+    }
   }
 
   function renderReadingTimerOptions() {
     if (!readingTimer.loaded) restoreReadingTimer();
     const select=$('#readingTimerBook'); if (!select) return;
-    const reading=state.books.filter(b=>b.status==='reading');
-    const preferred=reading.some(b=>b.id===readingTimer.bookId)?readingTimer.bookId:(reading[0]?.id||'');
+
+    const eligible=timerEligibleBooks();
+
+    // Если в localStorage осталась удалённая/завершённая книга, сбрасываем старый таймер.
+    if (readingTimer.bookId && !eligible.some(b=>b.id===readingTimer.bookId)) {
+      readingTimer.running=false;
+      readingTimer.startedAt=null;
+      readingTimer.accumulated=0;
+      clearInterval(readingTimer.tick);
+      readingTimer.tick=null;
+      readingTimer.bookId=null;
+      saveReadingTimer();
+    }
+
+    const preferred=eligible.some(b=>b.id===readingTimer.bookId)
+      ? readingTimer.bookId
+      : (eligible.find(b=>b.status==='reading')?.id || eligible[0]?.id || '');
+
     if (!readingTimer.running) readingTimer.bookId=preferred;
-    select.innerHTML=reading.length?reading.map(b=>`<option value="${b.id}" ${b.id===readingTimer.bookId?'selected':''}>${esc(b.title)}</option>`).join(''):'<option value="">Нет активных книг</option>';
-    $('#readingTimerToggle').disabled=!reading.length;
-    $('#readingTimerFinish').disabled=!reading.length || timerElapsedMs()<=0;
+
+    select.innerHTML=eligible.length
+      ? eligible.map(b=>`<option value="${b.id}" ${b.id===readingTimer.bookId?'selected':''}>${bookStatusLabels[b.status]||b.status} · ${esc(b.title)}</option>`).join('')
+      : '<option value="">Добавьте книгу</option>';
+
+    $('#readingTimerToggle').disabled=!eligible.length;
+    $('#readingTimerFinish').disabled=!readingTimer.bookId || timerElapsedMs()<=0;
     updateReadingTimerUI();
   }
 
@@ -1075,14 +1126,15 @@
     // Книги
     $('#addBookBtn').onclick = openBookNew;
     $('#bookSearch').addEventListener('input', renderBooks);
-    $$('[data-book-filter]').forEach(btn => btn.addEventListener('click', () => {
-      bookShelfFilter = btn.dataset.bookFilter || 'all';
-      renderBooks();
-      $('#booksLibrary')?.scrollIntoView({behavior:'smooth', block:'start'});
-    }));
+    $('#bookShelfTabs').addEventListener('click', e => {
+      const btn=e.target.closest('[data-book-filter]');
+      if (!btn) return;
+      e.preventDefault();
+      setBookShelfFilter(btn.dataset.bookFilter || 'all', {scroll:true});
+    });
     $('#readingMonth').addEventListener('change', renderReadingCalendar);
     $('#readingTimerBook').addEventListener('change', e => { if (!readingTimer.running) { readingTimer.bookId=e.target.value||null; saveReadingTimer(); } });
-    $('#readingTimerToggle').onclick = () => {
+    $('#readingTimerToggle').onclick = async () => {
       if (readingTimer.running) {
         readingTimer.accumulated=timerElapsedMs();
         readingTimer.running=false;
@@ -1090,14 +1142,45 @@
         clearInterval(readingTimer.tick); readingTimer.tick=null;
       } else {
         const id=$('#readingTimerBook').value;
-        if (!id) return;
+        if (!id) {
+          toast('Сначала добавьте или выберите книгу','error');
+          return;
+        }
+
+        const book=state.books.find(b=>b.id===id);
+        if (!book) {
+          toast('Книга не найдена. Обновите страницу.','error');
+          return;
+        }
+
+        if (book.status!=='reading') {
+          const {error}=await sb.from('pf_books')
+            .update({status:'reading',started_on:book.started_on||todayISO()})
+            .eq('id',id)
+            .eq('user_id',user.id);
+
+          if (error) {
+            console.error(error);
+            toast('Не удалось перевести книгу в «Читаю»','error');
+            return;
+          }
+
+          // Обновляем локально сразу, чтобы таймер запускался без ожидания перезагрузки.
+          book.status='reading';
+          book.started_on=book.started_on||todayISO();
+          bookShelfFilter='reading';
+          renderBooks();
+          $('#readingTimerBook').value=id;
+        }
+
         readingTimer.bookId=id;
         readingTimer.running=true;
         readingTimer.startedAt=Date.now();
         startTimerTick();
       }
-      saveReadingTimer(); updateReadingTimerUI();
-      $('#readingTimerFinish').disabled=timerElapsedMs()<=0;
+
+      saveReadingTimer();
+      updateReadingTimerUI();
     };
     $('#readingTimerFinish').onclick = () => {
       const id=readingTimer.bookId||$('#readingTimerBook').value;
@@ -1265,10 +1348,22 @@
         finished_on:$('#bookFinishedOn').value||(status==='finished'?todayISO():null),
         notes:$('#bookNotes').value.trim()||null
       };
-      const result=id?await sb.from('pf_books').update(payload).eq('id',id):await sb.from('pf_books').insert({...payload,user_id:user.id});
-      if (result.error) { console.error(result.error); toast('Не удалось сохранить книгу','error'); }
-      else { toast(id?'Книга обновлена':'Книга добавлена'); $('#bookDialog').close(); }
+      const result=id
+        ? await sb.from('pf_books').update(payload).eq('id',id).eq('user_id',user.id)
+        : await sb.from('pf_books').insert({...payload,user_id:user.id});
+
+      if (result.error) {
+        console.error(result.error);
+        toast(result.error.message || 'Не удалось сохранить книгу','error');
+        return;
+      }
+
+      bookShelfFilter=status;
+      toast(id?'Книга обновлена':'Книга добавлена');
+      $('#bookDialog').close();
+      document.body.classList.remove('dialog-open');
       await loadAll({silent:true});
+      switchTab('books');
     });
 
     $('#deleteBookBtn').onclick = async () => {
@@ -1425,6 +1520,8 @@
     });
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) { navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' }).then(reg => reg.update()).catch(console.warn); }
     window.addEventListener('focus',()=>{ if (user) loadAll({silent:true}); });
+    document.addEventListener('visibilitychange',()=>{ if (!document.hidden) updateReadingTimerUI(); });
+    window.addEventListener('pageshow',()=>updateReadingTimerUI());
   }
 
   document.addEventListener('DOMContentLoaded', init);
